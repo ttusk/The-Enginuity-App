@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "336203745083",
+    "project_id": "enginuity-43317",
+    "storage_bucket": "enginuity-43317.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:336203745083:android:6402c30fb88b841bc9991e",
+        "android_client_info": {
+          "package_name": "com.example.enginuity_the_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBr-2t8r5fMl-bx4rUan-b2Vsp8zK_iusM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

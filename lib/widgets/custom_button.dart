@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 
 class CustomButton extends StatelessWidget {
   final String text;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed; // Made nullable
   final Color buttonColor;
   final Color textColor;
 
   const CustomButton({
     Key? key,
     required this.text,
-    required this.onPressed,
+    this.onPressed, // Nullable to allow disabling
     required this.buttonColor,
     this.textColor = Colors.white,
   }) : super(key: key);
@@ -17,11 +17,11 @@ class CustomButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ElevatedButton(
-      onPressed: onPressed,
+      onPressed: onPressed, // Can be null to disable the button
       style: ElevatedButton.styleFrom(
         backgroundColor: buttonColor,
         foregroundColor: textColor,
-        minimumSize: const Size.fromHeight(50), // height only
+        minimumSize: const Size.fromHeight(50),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),

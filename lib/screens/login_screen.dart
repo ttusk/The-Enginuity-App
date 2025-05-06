@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/custom_button.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -10,6 +12,44 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool rememberMe = false;
+  bool isLoading = false;
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+
+  Future<void> _login() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter both email and password')),
+      );
+      return;
+    }
+
+    setState(() => isLoading = true);
+
+    try {
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
+
+      final uid = userCredential.user!.uid;
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
+      if (doc.exists) {
+        final fullName = doc.data()!['fullName'];
+        print("Welcome back, $fullName");
+      }
+
+      Navigator.pushReplacementNamed(context, '/home');
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? "Login failed")),
+      );
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,34 +76,36 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 20),
                 const Text(
                   'Log In',
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                  style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
                 const SizedBox(height: 30),
-                const TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Username',
+                TextField(
+                  controller: emailController,
+                  decoration: const InputDecoration(
+                    hintText: 'Email',
+                    hintStyle: TextStyle(color: Colors.white70),
                     filled: true,
                     fillColor: Colors.black45,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.all(Radius.circular(10)),
                     ),
                   ),
+                  style: const TextStyle(color: Colors.white),
                 ),
                 const SizedBox(height: 20),
-                const TextField(
+                TextField(
+                  controller: passwordController,
                   obscureText: true,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     hintText: 'Password',
+                    hintStyle: TextStyle(color: Colors.white70),
                     filled: true,
                     fillColor: Colors.black45,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.all(Radius.circular(10)),
                     ),
                   ),
+                  style: const TextStyle(color: Colors.white),
                 ),
                 const SizedBox(height: 10),
                 Row(
@@ -79,11 +121,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     const Text('Remember Me', style: TextStyle(color: Colors.white)),
                     const Spacer(),
                     TextButton(
-                      onPressed: () {},
-                      child: const Text(
-                        'Forgot Password?',
-                        style: TextStyle(color: Colors.white70),
-                      ),
+                      onPressed: () {
+                        // TODO: Implement forgot password functionality
+                      },
+                      child: const Text('Forgot Password?', style: TextStyle(color: Colors.white70)),
                     ),
                   ],
                 ),
@@ -93,20 +134,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: SizedBox(
                     width: double.infinity,
                     child: CustomButton(
-                      text: 'Login',
+                      text: isLoading ? 'Logging in...' : 'Login',
                       buttonColor: const Color(0xFF2B4752),
                       textColor: Colors.white,
-                      onPressed: () {
-                        Navigator.pushNamed(context, '/login');
-                      },
+                      onPressed: isLoading ? null : () => _login(),
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 30),
-                const Center(
-                  child: Text('Or Sign in with', style: TextStyle(color: Colors.white54)),
-                ),
+                const Center(child: Text('Or Sign in with', style: TextStyle(color: Colors.white54))),
                 const SizedBox(height: 30),
                 Center(
                   child: Row(
@@ -117,11 +153,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: () {
                           Navigator.pushNamed(context, '/signup');
                         },
-                        child: const Text(
-                          'Sign up',
-                          style: TextStyle(color: Colors.lightBlueAccent),
-                        ),
-                      )
+                        child: const Text('Sign up', style: TextStyle(color: Colors.lightBlueAccent)),
+                      ),
                     ],
                   ),
                 )
