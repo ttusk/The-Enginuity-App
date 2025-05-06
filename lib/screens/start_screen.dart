@@ -30,23 +30,39 @@ class StartScreen extends StatelessWidget {
             const SizedBox(height: 100),
             Image.asset('assets/images/engine_logo_2.png', height: 180),
             const SizedBox(height: 100),
-            CustomButton(
-              text: 'Login',
-              buttonColor: Color(0xFF2B4752),
-              textColor: Colors.white,
-              onPressed: () {
-                Navigator.pushNamed(context, '/login');
-              },
+            Padding(padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: SizedBox(
+              width: double.infinity,
+              child: CustomButton(
+                text: 'Login',
+                buttonColor: Color(0xFF2B4752),
+                textColor: Colors.white,
+                onPressed: () {
+                  Navigator.pushNamed(context, '/login');
+                },
+              ),
+            ),
+
+            ),
+
+            const SizedBox(height: 25),
+
+            Padding(padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: SizedBox(
+                width: double.infinity,
+                child: CustomButton(
+                  text: 'Create Account',
+                  buttonColor: Color(0xFF697F8C),
+                  textColor: Colors.white,
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/signup');
+                  },
+                ),
+              ),
+
             ),
             const SizedBox(height: 16),
-            CustomButton(
-              text: 'Create Account',
-              buttonColor: Color(0xFF697F8C),
-              textColor: Colors.white,
-              onPressed: () {
-                Navigator.pushNamed(context, '/signup');
-              },
-            ),
+
           ],
         ),
       ),
