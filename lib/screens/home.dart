@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'add_car_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -57,7 +58,12 @@ class HomeScreen extends StatelessWidget {
                       padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
                     ),
-                    onPressed: null, // Replace with action
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AddCarScreen()),
+                      );
+                    },
                     child: Text('ADD CAR', style: TextStyle(color: Colors.white)),
                   ),
                 ],
