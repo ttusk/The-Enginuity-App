@@ -1,8 +1,34 @@
 import 'package:flutter/material.dart';
 import 'add_car_screen.dart';
+import 'connect_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _selectedIndex = 0;
+
+  void _onItemTapped(int index) async {
+    if (index == 2) {
+      // Share icon tapped, navigate to ConnectScreen
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const ConnectScreen()),
+      );
+      // After returning, set selected index back to home
+      setState(() {
+        _selectedIndex = 0;
+      });
+    } else {
+      setState(() {
+        _selectedIndex = index;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -91,6 +117,8 @@ class HomeScreen extends StatelessWidget {
         backgroundColor: const Color(0xFF0A1F26),
         selectedItemColor: Colors.white,
         unselectedItemColor: Colors.white38,
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
           BottomNavigationBarItem(icon: Icon(Icons.build), label: ''),
