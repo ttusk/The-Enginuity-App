@@ -32,7 +32,7 @@ class HomeScreen extends StatelessWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Walker', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                          // const Text('Walker', style: TextStyle(color: Colors.white70, fontSize: 12)),
                           FutureBuilder<DocumentSnapshot>(
                             future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
                             builder: (context, snapshot) {
