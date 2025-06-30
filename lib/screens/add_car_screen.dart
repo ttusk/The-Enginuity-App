@@ -191,7 +191,17 @@ class _AddCarScreenState extends State<AddCarScreen> {
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: () {
-                  // No action for now
+                  if (_formKey.currentState!.validate()) {
+                    // Prepare car data
+                    final carData = {
+                      'make': _selectedMake,
+                      'model': _selectedModel,
+                      'mileage': _mileageController.text,
+                      'lastServiceDate': _lastServiceDate,
+                      'imageFile': _carImageFile ?? 'No image uploaded',
+                    };
+                    Navigator.of(context).pop(carData);
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF22313F),

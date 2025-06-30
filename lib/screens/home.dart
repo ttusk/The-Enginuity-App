@@ -1,8 +1,35 @@
 import 'package:flutter/material.dart';
 import 'add_car_screen.dart';
+import 'scan_screen.dart';
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({Key? key}) : super(key: key);
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  Map<String, dynamic>? _carData;
+  int _selectedIndex = 0;
+
+  void _onNavBarTapped(int index) {
+    if (index == _selectedIndex) return;
+
+    setState(() {
+      _selectedIndex = index;
+    });
+
+    // Navigation for Scan tab (index 2)
+    if (index == 2) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ScanScreen(carData: _carData, deviceConnected: false),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,31 +85,67 @@ class HomeScreen extends StatelessWidget {
                       padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
                     ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const AddCarScreen()),
-                      );
-                    },
+                    onPressed: () async {
+  final result = await Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => const AddCarScreen()),
+  );
+  if (result != null && result is Map<String, dynamic>) {
+    setState(() {
+      _carData = result;
+    });
+  }
+},
                     child: Text('ADD CAR', style: TextStyle(color: Colors.white)),
                   ),
                 ],
               ),
               const SizedBox(height: 30),
               Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.directions_car, size: 120, color: Colors.black54),
-                      SizedBox(height: 10),
-                      Text('No Cars', style: TextStyle(color: Colors.white70, fontSize: 16)),
-                      SizedBox(height: 4),
-                      Text('Sorry to let you down 💔', style: TextStyle(color: Colors.white38, fontSize: 14)),
-                    ],
-                  ),
-                ),
-              ),
+  child: Center(
+    child: _carData == null
+        ? Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(Icons.directions_car, size: 120, color: Colors.black54),
+              SizedBox(height: 10),
+              Text('No Cars', style: TextStyle(color: Colors.white70, fontSize: 16)),
+              SizedBox(height: 4),
+              Text('Sorry to let you down 💔', style: TextStyle(color: Colors.white38, fontSize: 14)),
+            ],
+          )
+        : Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _carData!['imageFile'] is String
+                  ? Container(
+                      width: 160,
+                      height: 120,
+                      color: Colors.black54,
+                      alignment: Alignment.center,
+                      child: const Text(
+                        'add car image',
+                        style: TextStyle(color: Colors.white70, fontSize: 16),
+                      ),
+                    )
+                  : ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.file(
+                        _carData!['imageFile'],
+                        width: 160,
+                        height: 120,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+              const SizedBox(height: 10),
+              Text('${_carData!['make']} ${_carData!['model']}', style: const TextStyle(color: Colors.white, fontSize: 18)),
+              Text('Mileage: ${_carData!['mileage']} KM', style: const TextStyle(color: Colors.white70, fontSize: 14)),
+              Text('Last Service: ${_carData!['lastServiceDate'] != null ? (_carData!['lastServiceDate'] is DateTime ?
+                (_carData!['lastServiceDate'] as DateTime).toString().split(' ')[0] : _carData!['lastServiceDate'].toString()) : ''}', style: const TextStyle(color: Colors.white38, fontSize: 13)),
+            ],
+          ),
+  ),
+),
             ],
           ),
         ),
@@ -91,11 +154,14 @@ class HomeScreen extends StatelessWidget {
         backgroundColor: const Color(0xFF0A1F26),
         selectedItemColor: Colors.white,
         unselectedItemColor: Colors.white38,
+        currentIndex: _selectedIndex,
+        type: BottomNavigationBarType.fixed,
+        onTap: _onNavBarTapped,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
           BottomNavigationBarItem(icon: Icon(Icons.build), label: ''),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: ''),
           BottomNavigationBarItem(icon: Icon(Icons.share), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: ''),
         ],
       ),
     );
