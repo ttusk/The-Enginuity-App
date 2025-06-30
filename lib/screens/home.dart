@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'add_car_screen.dart';
 import 'scan_screen.dart';
 
@@ -33,6 +35,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+
     return Scaffold(
       backgroundColor: const Color(0xFF0A1F26),
       body: SafeArea(
@@ -54,14 +58,26 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(width: 10),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text('Walker', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                          Text('Hey, Paul !', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                        children: [
+                          // const Text('Walker', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                          FutureBuilder<DocumentSnapshot>(
+                            future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return const Text('Loading...', style: TextStyle(color: Colors.white));
+                              } else if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
+                                return const Text('Hey there!', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold));
+                              } else {
+                                final fullName = snapshot.data!.get('fullName') ?? 'there';
+                                return Text('Hey, $fullName!', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold));
+                              }
+                            },
+                          ),
                         ],
                       ),
                     ],
                   ),
-                  Icon(Icons.signal_cellular_alt, color: Colors.white70),
+                  const Icon(Icons.signal_cellular_alt, color: Colors.white70),
                 ],
               ),
               const SizedBox(height: 30),
@@ -77,14 +93,15 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 30),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children:  [
-                  Text('My Cars', style: TextStyle(color: Colors.white, fontSize: 16)),
+                children: [
+                  const Text('My Cars', style: TextStyle(color: Colors.white, fontSize: 16)),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF2C4D54),
-                      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
+                      backgroundColor: const Color(0xFF2C4D54),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
                     ),
+add-car
                     onPressed: () async {
   final result = await Navigator.push(
     context,
@@ -97,6 +114,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 },
                     child: Text('ADD CAR', style: TextStyle(color: Colors.white)),
+
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AddCarScreen()),
+                      );
+                    },
+                    child: const Text('ADD CAR', style: TextStyle(color: Colors.white)),
+ master
                   ),
                 ],
               ),
