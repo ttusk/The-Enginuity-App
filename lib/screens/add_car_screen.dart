@@ -423,7 +423,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
                   DropdownMenuItem(value: m, child: Text(m)))
                   .toList(),
               onChanged: (val) => setState(
-                      () => {_selectedMake = val, _selectedModel = null}),
+                      () {_selectedMake = val; _selectedModel = null;}),
               validator: (v) => v == null ? 'Select make' : null,
               dropdownColor: const Color(0xFF22313F),
             ),
@@ -472,13 +472,13 @@ class _AddCarScreenState extends State<AddCarScreen> {
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: _save,
-              child: const Text("ADD"),
               style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF22313F),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8)),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   textStyle: const TextStyle(fontSize: 18)),
+              child: const Text("ADD"),
             )
           ]),
         ),

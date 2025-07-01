@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../obd_connection_manager.dart';
 
 class ConnectScreen extends StatefulWidget {
   const ConnectScreen({super.key});
@@ -62,15 +63,16 @@ class _ConnectScreenState extends State<ConnectScreen> {
       }
       if (obdDevice != null) {
         // Try to connect
-        BluetoothConnection connection = await BluetoothConnection.toAddress(obdDevice.address);
+        bool connected = await ObdConnectionManager().connectToDevice(obdDevice);
         setState(() {
-          _dialogText = 'Connected!';
-          _connected = true;
+          _dialogText = connected ? 'Connected!' : 'Connection failed.';
+          _connected = connected;
         });
-        await Future.delayed(const Duration(seconds: 5));
+        await Future.delayed(const Duration(seconds: 2));
         Navigator.of(context).pop(); // Close dialog
-        Navigator.of(context).pop(); // Go back to home
-        connection.finish();
+        if (connected) {
+          Navigator.of(context).pop(); // Go back to home
+        }
         return;
       } else {
         setState(() {

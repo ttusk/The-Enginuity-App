@@ -4,6 +4,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'add_car_screen.dart';
 import 'connect_screen.dart';
 import 'scan_screen.dart';
+import 'errors_screen.dart';
+import 'dart:io';
+import 'dart:convert';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,7 +20,46 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
 void _onItemTapped(int index) async {
-  if (index == 2) {
+  final uid = FirebaseAuth.instance.currentUser!.uid;
+  final carsColl = FirebaseFirestore.instance
+      .collection('users')
+      .doc(uid)
+      .collection('cars');
+  final carsSnapshot = await carsColl.get();
+  final hasCars = carsSnapshot.docs.isNotEmpty;
+
+  if ((index == 1 || index == 2 || index == 3) && !hasCars) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Add a car to access this feature.')),
+    );
+    return;
+  }
+
+  if (index == 1) {
+    // Load last_errors.json from documents directory
+    List<dynamic> errors = [];
+    List<dynamic> predictions = [];
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File(p.join(dir.path, 'last_errors.json'));
+      if (await file.exists()) {
+        final content = await file.readAsString();
+        final jsonData = json.decode(content);
+        errors = jsonData['errors'] ?? [];
+        predictions = jsonData['predictions'] ?? [];
+      }
+    } catch (_) {}
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ErrorsScreen(
+          errors: errors,
+          predictions: predictions,
+        ),
+      ),
+    );
+    setState(() => _selectedIndex = 0); // Return to home after errors screen
+  } else if (index == 2) {
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => ScanScreen(carData: null, deviceConnected: false)),
