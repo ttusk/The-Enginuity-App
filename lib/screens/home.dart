@@ -6,172 +6,211 @@ import 'scan_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
-
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  Map<String, dynamic>? _carData;
-  int _selectedIndex = 0;
+  int _selected = 0;
 
-  void _onNavBarTapped(int index) {
-    if (index == _selectedIndex) return;
-
-    setState(() {
-      _selectedIndex = index;
-    });
-
-    if (index == 2) {
+  void _onNavBarTapped(int i) {
+    if (i == _selected) return;
+    setState(() => _selected = i);
+    if (i == 2) {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => ScanScreen(carData: _carData, deviceConnected: false),
+          builder: (_) => ScanScreen(carData: null, deviceConnected: false),
         ),
       );
     }
   }
 
+  void _logout() async {
+    await FirebaseAuth.instance.signOut();
+    if (!mounted) return;
+    Navigator.pushReplacementNamed(context, '/start-screen');
+  }
+
   @override
   Widget build(BuildContext context) {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final carsColl = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('cars')
+        .orderBy('createdAt', descending: true);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A1F26),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8),
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      const CircleAvatar(
-                        backgroundColor: Colors.grey,
-                        radius: 22,
-                        child: Icon(Icons.person, color: Colors.white),
-                      ),
-                      const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          FutureBuilder<DocumentSnapshot>(
-                            future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState == ConnectionState.waiting) {
-                                return const Text('Loading...', style: TextStyle(color: Colors.white));
-                              } else if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
-                                return const Text('Hey there!', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold));
-                              } else {
-                                final fullName = snapshot.data!.get('fullName') ?? 'there';
-                                return Text('Hey, $fullName!', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold));
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const Icon(Icons.signal_cellular_alt, color: Colors.white70),
-                ],
-              ),
-              const SizedBox(height: 30),
-              const Text(
-                'Home',
-                style: TextStyle(color: Colors.white54, fontSize: 14),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Welcome',
-                style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 30),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('My Cars', style: TextStyle(color: Colors.white, fontSize: 16)),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2C4D54),
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
-                    ),
-                    onPressed: () async {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const AddCarScreen()),
-                      );
-                      if (result != null && result is Map<String, dynamic>) {
-                        setState(() {
-                          _carData = result;
-                        });
-                      }
+                  PopupMenuButton<String>(
+                    offset: const Offset(0, 40),
+                    onSelected: (value) {
+                      if (value == 'logout') _logout();
                     },
-                    child: const Text('ADD CAR', style: TextStyle(color: Colors.white)),
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(value: 'logout', child: Text('Logout')),
+                    ],
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    child: const CircleAvatar(
+                      backgroundColor: Colors.grey,
+                      radius: 22,
+                      child: Icon(Icons.person, color: Colors.white),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      FutureBuilder<DocumentSnapshot>(
+                        future: FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(FirebaseAuth.instance.currentUser?.uid)
+                            .get(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Text('Loading...',
+                                style: TextStyle(color: Colors.white));
+                          } else if (snapshot.hasError ||
+                              !snapshot.hasData ||
+                              !snapshot.data!.exists) {
+                            return const Text('Hey there!',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold));
+                          } else {
+                            final fullName = snapshot.data!.get('fullName') ?? 'there';
+                            return Text('Hey, $fullName!',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold));
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 2),
+                      const Text('Welcome',
+                          style: TextStyle(color: Colors.white54, fontSize: 14)),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 30),
-              Expanded(
-                child: Center(
-                  child: _carData == null
-                      ? Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.directions_car, size: 120, color: Colors.black54),
-                      SizedBox(height: 10),
-                      Text('No Cars', style: TextStyle(color: Colors.white70, fontSize: 16)),
-                      SizedBox(height: 4),
-                      Text('Sorry to let you down 💔', style: TextStyle(color: Colors.white38, fontSize: 14)),
-                    ],
-                  )
-                      : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _carData!['imageFile'] is String
-                          ? Container(
-                        width: 160,
-                        height: 120,
-                        color: Colors.black54,
-                        alignment: Alignment.center,
-                        child: const Text(
-                          'add car image',
-                          style: TextStyle(color: Colors.white70, fontSize: 16),
-                        ),
-                      )
-                          : ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Image.file(
-                          _carData!['imageFile'],
-                          width: 160,
-                          height: 120,
-                          fit: BoxFit.cover,
-                        ),
+            ),
+            const SizedBox(height: 20),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Text('My Cars',
+                  style: TextStyle(color: Colors.white70, fontSize: 16)),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: carsColl.snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const Center(
+                      child: Text('No Cars Added',
+                          style: TextStyle(color: Colors.white70)),
+                    );
+                  }
+
+                  final docs = snapshot.data!.docs;
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: docs.length,
+                    itemBuilder: (context, index) {
+                      final doc = docs[index];
+                      final data = doc.data() as Map<String, dynamic>;
+                      return Card(
+                        color: const Color(0xFF22313F),
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        child: ListTile(
+                          leading: data['imageUrl'] != null
+                              ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              data['imageUrl'],
+                              width: 50,
+                              height: 50,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                              : const Icon(Icons.directions_car,
+                              color: Colors.white),
+                          title: Text('${data['make']} ${data['model']}',
+                              style: const TextStyle(color: Colors.white)),
+                          subtitle: Text(
+                            'Mileage: ${data['mileage']} km\n'
+                                'Last Service: ${data['lastServiceDate'] != null ? (data['lastServiceDate'] as Timestamp).toDate().toString().split(" ")[0] : 'N/A'}',
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                          isThreeLine: true,
+                          trailing: IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.redAccent),
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text("Delete Car"),
+                              content: const Text("Are you sure you want to delete this car?"),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text("Cancel"),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text("Delete", style: TextStyle(color: Colors.red)),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (confirm == true) {
+                            await doc.reference.delete();
+                          }
+                        },
                       ),
-                      const SizedBox(height: 10),
-                      Text('${_carData!['make']} ${_carData!['model']}', style: const TextStyle(color: Colors.white, fontSize: 18)),
-                      Text('Mileage: ${_carData!['mileage']} KM', style: const TextStyle(color: Colors.white70, fontSize: 14)),
-                      Text(
-                        'Last Service: ${_carData!['lastServiceDate'] != null ? (_carData!['lastServiceDate'] is DateTime ? (_carData!['lastServiceDate'] as DateTime).toString().split(' ')[0] : _carData!['lastServiceDate'].toString()) : ''}',
-                        style: const TextStyle(color: Colors.white38, fontSize: 13),
+
                       ),
-                    ],
-                  ),
-                ),
+                      );
+                    },
+                  );
+                },
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: const Color(0xFF2C4D54),
+        onPressed: () async {
+          await Navigator.push(
+              context, MaterialPageRoute(builder: (_) => const AddCarScreen()));
+        },
+        child: const Icon(Icons.add),
+      ),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         backgroundColor: const Color(0xFF0A1F26),
         selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.white38,
-        currentIndex: _selectedIndex,
-        type: BottomNavigationBarType.fixed,
+        unselectedItemColor: Colors.white54,
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
+        currentIndex: _selected,
         onTap: _onNavBarTapped,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
@@ -180,6 +219,13 @@ class _HomeScreenState extends State<HomeScreen> {
           BottomNavigationBarItem(icon: Icon(Icons.share), label: ''),
         ],
       ),
+
     );
   }
 }
+
+
+
+
+
+
