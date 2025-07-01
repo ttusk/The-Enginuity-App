@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'add_car_screen.dart';
+import 'connect_screen.dart';
 import 'scan_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
@@ -13,18 +14,23 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selected = 0;
 
-  void _onNavBarTapped(int i) {
-    if (i == _selected) return;
-    setState(() => _selected = i);
-    if (i == 2) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ScanScreen(carData: null, deviceConnected: false),
-        ),
-      );
-    }
+void _onItemTapped(int index) async {
+  if (index == 2) {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ScanScreen(carData: null, deviceConnected: false)),
+    );
+    setState(() => _selectedIndex = 0); // Return to home after scan
+  } else if (index == 3) {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ConnectScreen()),
+    );
+    setState(() => _selectedIndex = 0); // Return to home after connect
+  } else {
+    setState(() => _selectedIndex = index);
   }
+}
 
   void _logout() async {
     await FirebaseAuth.instance.signOut();
@@ -207,11 +213,11 @@ class _HomeScreenState extends State<HomeScreen> {
         type: BottomNavigationBarType.fixed,
         backgroundColor: const Color(0xFF0A1F26),
         selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.white54,
+        unselectedItemColor: Colors.white38,
         showSelectedLabels: false,
         showUnselectedLabels: false,
-        currentIndex: _selected,
-        onTap: _onNavBarTapped,
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
           BottomNavigationBarItem(icon: Icon(Icons.build), label: ''),
