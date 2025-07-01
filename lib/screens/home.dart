@@ -1,131 +1,237 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'add_car_screen.dart';
 import 'connect_screen.dart';
+import 'scan_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
-
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
+  int _selected = 0;
 
-  void _onItemTapped(int index) async {
-    if (index == 2) {
-      // Share icon tapped, navigate to ConnectScreen
-      await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const ConnectScreen()),
-      );
-      // After returning, set selected index back to home
-      setState(() {
-        _selectedIndex = 0;
-      });
-    } else {
-      setState(() {
-        _selectedIndex = index;
-      });
-    }
+void _onItemTapped(int index) async {
+  if (index == 2) {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ScanScreen(carData: null, deviceConnected: false)),
+    );
+    setState(() => _selectedIndex = 0); // Return to home after scan
+  } else if (index == 3) {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ConnectScreen()),
+    );
+    setState(() => _selectedIndex = 0); // Return to home after connect
+  } else {
+    setState(() => _selectedIndex = index);
+  }
+}
+
+  void _logout() async {
+    await FirebaseAuth.instance.signOut();
+    if (!mounted) return;
+    Navigator.pushReplacementNamed(context, '/start-screen');
   }
 
   @override
   Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final carsColl = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('cars')
+        .orderBy('createdAt', descending: true);
+
     return Scaffold(
       backgroundColor: const Color(0xFF0A1F26),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8),
+              child: Row(
                 children: [
-                  Row(
+                  PopupMenuButton<String>(
+                    offset: const Offset(0, 40),
+                    onSelected: (value) {
+                      if (value == 'logout') _logout();
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(value: 'logout', child: Text('Logout')),
+                    ],
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    child: const CircleAvatar(
+                      backgroundColor: Colors.grey,
+                      radius: 22,
+                      child: Icon(Icons.person, color: Colors.white),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const CircleAvatar(
-                        backgroundColor: Colors.grey,
-                        radius: 22,
-                        child: Icon(Icons.person, color: Colors.white),
+                      FutureBuilder<DocumentSnapshot>(
+                        future: FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(FirebaseAuth.instance.currentUser?.uid)
+                            .get(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Text('Loading...',
+                                style: TextStyle(color: Colors.white));
+                          } else if (snapshot.hasError ||
+                              !snapshot.hasData ||
+                              !snapshot.data!.exists) {
+                            return const Text('Hey there!',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold));
+                          } else {
+                            final fullName = snapshot.data!.get('fullName') ?? 'there';
+                            return Text('Hey, $fullName!',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold));
+                          }
+                        },
                       ),
-                      const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text('Walker', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                          Text('Hey, Paul !', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
+                      const SizedBox(height: 2),
+                      const Text('Welcome',
+                          style: TextStyle(color: Colors.white54, fontSize: 14)),
                     ],
                   ),
-                  Icon(Icons.signal_cellular_alt, color: Colors.white70),
                 ],
               ),
-              const SizedBox(height: 30),
-              const Text(
-                'Home',
-                style: TextStyle(color: Colors.white54, fontSize: 14),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Welcome',
-                style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 30),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children:  [
-                  Text('My Cars', style: TextStyle(color: Colors.white, fontSize: 16)),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF2C4D54),
-                      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const AddCarScreen()),
+            ),
+            const SizedBox(height: 20),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Text('My Cars',
+                  style: TextStyle(color: Colors.white70, fontSize: 16)),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: carsColl.snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const Center(
+                      child: Text('No Cars Added',
+                          style: TextStyle(color: Colors.white70)),
+                    );
+                  }
+
+                  final docs = snapshot.data!.docs;
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: docs.length,
+                    itemBuilder: (context, index) {
+                      final doc = docs[index];
+                      final data = doc.data() as Map<String, dynamic>;
+                      return Card(
+                        color: const Color(0xFF22313F),
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        child: ListTile(
+                          leading: data['imageUrl'] != null
+                              ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              data['imageUrl'],
+                              width: 50,
+                              height: 50,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                              : const Icon(Icons.directions_car,
+                              color: Colors.white),
+                          title: Text('${data['make']} ${data['model']}',
+                              style: const TextStyle(color: Colors.white)),
+                          subtitle: Text(
+                            'Mileage: ${data['mileage']} miles\n'
+                                'Last Service: ${data['lastServiceDate'] != null ? (data['lastServiceDate'] as Timestamp).toDate().toString().split(" ")[0] : 'N/A'}',
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                          isThreeLine: true,
+                          trailing: IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.redAccent),
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text("Delete Car"),
+                              content: const Text("Are you sure you want to delete this car?"),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text("Cancel"),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text("Delete", style: TextStyle(color: Colors.red)),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (confirm == true) {
+                            await doc.reference.delete();
+                          }
+                        },
+                      ),
+
+                      ),
                       );
                     },
-                    child: Text('ADD CAR', style: TextStyle(color: Colors.white)),
-                  ),
-                ],
+                  );
+                },
               ),
-              const SizedBox(height: 30),
-              Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.directions_car, size: 120, color: Colors.black54),
-                      SizedBox(height: 10),
-                      Text('No Cars', style: TextStyle(color: Colors.white70, fontSize: 16)),
-                      SizedBox(height: 4),
-                      Text('Sorry to let you down 💔', style: TextStyle(color: Colors.white38, fontSize: 14)),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: const Color(0xFF2C4D54),
+        onPressed: () async {
+          await Navigator.push(
+              context, MaterialPageRoute(builder: (_) => const AddCarScreen()));
+        },
+        child: const Icon(Icons.add),
+      ),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         backgroundColor: const Color(0xFF0A1F26),
         selectedItemColor: Colors.white,
         unselectedItemColor: Colors.white38,
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
           BottomNavigationBarItem(icon: Icon(Icons.build), label: ''),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: ''),
           BottomNavigationBarItem(icon: Icon(Icons.share), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: ''),
         ],
       ),
+
     );
   }
 }
+
+
+
+
+
+
