@@ -12,7 +12,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selected = 0;
+  int _selectedIndex = 0;
 
 void _onItemTapped(int index) async {
   if (index == 2) {
