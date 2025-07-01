@@ -153,7 +153,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           title: Text('${data['make']} ${data['model']}',
                               style: const TextStyle(color: Colors.white)),
                           subtitle: Text(
-                            'Mileage: ${data['mileage']} km\n'
+                            'Mileage: ${data['mileage']} miles\n'
                                 'Last Service: ${data['lastServiceDate'] != null ? (data['lastServiceDate'] as Timestamp).toDate().toString().split(" ")[0] : 'N/A'}',
                             style: const TextStyle(color: Colors.white70),
                           ),

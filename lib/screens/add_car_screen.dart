@@ -445,7 +445,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
             TextFormField(
               controller: _mileageCtrl,
               keyboardType: TextInputType.number,
-              decoration: _dec('Car Mileage (KM)'),
+              decoration: _dec('Car Mileage (Miles)'),
               validator: (v) {
                 if (v == null || v.isEmpty) return 'Enter mileage';
                 if (int.tryParse(v) == null) return 'Enter valid number';
