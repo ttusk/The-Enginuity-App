@@ -22,7 +22,6 @@ class _HomeScreenState extends State<HomeScreen> {
       _selectedIndex = index;
     });
 
-    // Navigation for Scan tab (index 2)
     if (index == 2) {
       Navigator.push(
         context,
@@ -59,7 +58,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // const Text('Walker', style: TextStyle(color: Colors.white70, fontSize: 12)),
                           FutureBuilder<DocumentSnapshot>(
                             future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
                             builder: (context, snapshot) {
@@ -101,77 +99,69 @@ class _HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
                     ),
-add-car
                     onPressed: () async {
-  final result = await Navigator.push(
-    context,
-    MaterialPageRoute(builder: (context) => const AddCarScreen()),
-  );
-  if (result != null && result is Map<String, dynamic>) {
-    setState(() {
-      _carData = result;
-    });
-  }
-},
-                    child: Text('ADD CAR', style: TextStyle(color: Colors.white)),
-
-                    onPressed: () {
-                      Navigator.push(
+                      final result = await Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => const AddCarScreen()),
                       );
+                      if (result != null && result is Map<String, dynamic>) {
+                        setState(() {
+                          _carData = result;
+                        });
+                      }
                     },
                     child: const Text('ADD CAR', style: TextStyle(color: Colors.white)),
- master
                   ),
                 ],
               ),
               const SizedBox(height: 30),
               Expanded(
-  child: Center(
-    child: _carData == null
-        ? Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              Icon(Icons.directions_car, size: 120, color: Colors.black54),
-              SizedBox(height: 10),
-              Text('No Cars', style: TextStyle(color: Colors.white70, fontSize: 16)),
-              SizedBox(height: 4),
-              Text('Sorry to let you down 💔', style: TextStyle(color: Colors.white38, fontSize: 14)),
-            ],
-          )
-        : Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _carData!['imageFile'] is String
-                  ? Container(
-                      width: 160,
-                      height: 120,
-                      color: Colors.black54,
-                      alignment: Alignment.center,
-                      child: const Text(
-                        'add car image',
-                        style: TextStyle(color: Colors.white70, fontSize: 16),
-                      ),
-                    )
-                  : ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Image.file(
-                        _carData!['imageFile'],
+                child: Center(
+                  child: _carData == null
+                      ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.directions_car, size: 120, color: Colors.black54),
+                      SizedBox(height: 10),
+                      Text('No Cars', style: TextStyle(color: Colors.white70, fontSize: 16)),
+                      SizedBox(height: 4),
+                      Text('Sorry to let you down 💔', style: TextStyle(color: Colors.white38, fontSize: 14)),
+                    ],
+                  )
+                      : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _carData!['imageFile'] is String
+                          ? Container(
                         width: 160,
                         height: 120,
-                        fit: BoxFit.cover,
+                        color: Colors.black54,
+                        alignment: Alignment.center,
+                        child: const Text(
+                          'add car image',
+                          style: TextStyle(color: Colors.white70, fontSize: 16),
+                        ),
+                      )
+                          : ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.file(
+                          _carData!['imageFile'],
+                          width: 160,
+                          height: 120,
+                          fit: BoxFit.cover,
+                        ),
                       ),
-                    ),
-              const SizedBox(height: 10),
-              Text('${_carData!['make']} ${_carData!['model']}', style: const TextStyle(color: Colors.white, fontSize: 18)),
-              Text('Mileage: ${_carData!['mileage']} KM', style: const TextStyle(color: Colors.white70, fontSize: 14)),
-              Text('Last Service: ${_carData!['lastServiceDate'] != null ? (_carData!['lastServiceDate'] is DateTime ?
-                (_carData!['lastServiceDate'] as DateTime).toString().split(' ')[0] : _carData!['lastServiceDate'].toString()) : ''}', style: const TextStyle(color: Colors.white38, fontSize: 13)),
-            ],
-          ),
-  ),
-),
+                      const SizedBox(height: 10),
+                      Text('${_carData!['make']} ${_carData!['model']}', style: const TextStyle(color: Colors.white, fontSize: 18)),
+                      Text('Mileage: ${_carData!['mileage']} KM', style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                      Text(
+                        'Last Service: ${_carData!['lastServiceDate'] != null ? (_carData!['lastServiceDate'] is DateTime ? (_carData!['lastServiceDate'] as DateTime).toString().split(' ')[0] : _carData!['lastServiceDate'].toString()) : ''}',
+                        style: const TextStyle(color: Colors.white38, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
