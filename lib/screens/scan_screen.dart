@@ -11,12 +11,15 @@ import 'dart:convert';
 import 'package:path/path.dart' as p;
 import 'errors_screen.dart';
 import '../obd_connection_manager.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 
 class ScanScreen extends StatefulWidget {
   final Map<String, dynamic>? carData;
   // You can pass the device connection status from outside when real integration is ready
   final bool deviceConnected;
   final bool skipPreconditions;
+
 
   const ScanScreen({super.key, required this.carData, this.deviceConnected = false, this.skipPreconditions = false});
 
@@ -25,6 +28,25 @@ class ScanScreen extends StatefulWidget {
 }
 
 class _ScanScreenState extends State<ScanScreen> {
+
+  Future<void> _updateLastScanInFirestore({
+    required String carId,
+    required DateTime scanTime,
+    List<dynamic>? errors,
+    List<dynamic>? predictions,
+  }) async {
+    try {
+      await FirebaseFirestore.instance.collection('cars').doc(carId).update({
+        'lastScan': Timestamp.fromDate(scanTime),
+        'lastScanErrors': errors ?? [],
+        'lastScanPredictions': predictions ?? [],
+      });
+    } catch (e) {
+      debugPrint('Failed to update last scan: $e');
+    }
+  }
+
+
   final List<_ScanRecord> _history = [];
   File? _carImageFile;
   // Map to hold metric values (0.0 - 1.0) for progress bars
@@ -301,12 +323,21 @@ class _ScanScreenState extends State<ScanScreen> {
     }
   }
 
-  void _stopRealTimeScan() {
+  void _stopRealTimeScan() async {
     _realTimeTimer?.cancel();
     setState(() {
       _realTimeScanning = false;
     });
+
+    final scanTime = DateTime.now();
+    if (widget.carData != null && widget.carData!['id'] != null) {
+      await _updateLastScanInFirestore(
+        carId: widget.carData!['id'],
+        scanTime: scanTime,
+      );
+    }
   }
+
 
   @override
   void dispose() {
@@ -682,6 +713,19 @@ class _ScanScreenState extends State<ScanScreen> {
         final jsonResponse = json.decode(response2.body);
         predictions = jsonResponse['predictions'] ?? [];
       }
+      final scanTime = DateTime.now();
+
+// Firestore update
+      if (widget.carData != null && widget.carData!['id'] != null) {
+        await _updateLastScanInFirestore(
+          carId: widget.carData!['id'],
+          scanTime: scanTime,
+          errors: errors,
+          predictions: predictions,
+        );
+      }
+
+// Navigate to results screen
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => ErrorsScreen(
@@ -691,6 +735,7 @@ class _ScanScreenState extends State<ScanScreen> {
           ),
         ),
       );
+
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to connect to server: $e')),

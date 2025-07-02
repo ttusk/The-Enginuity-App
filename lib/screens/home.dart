@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../notification_service.dart';
 import 'add_car_screen.dart';
 import 'connect_screen.dart';
 import 'scan_screen.dart';
@@ -17,6 +18,15 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    NotificationService.checkAndNotify(); // Call your notification checker here
+  }
+
+
+
+
   int _selectedIndex = 0;
 
 void _onItemTapped(int index) async {
@@ -204,9 +214,13 @@ void _onItemTapped(int index) async {
                               style: const TextStyle(color: Colors.white)),
                           subtitle: Text(
                             'Mileage: ${data['mileage']} miles\n'
-                                'Last Service: ${data['lastServiceDate'] != null ? (data['lastServiceDate'] as Timestamp).toDate().toString().split(" ")[0] : 'N/A'}',
+                                'Last Service: ${data['lastServiceDate'] != null ? (data['lastServiceDate'] as Timestamp).toDate().toString().split(" ")[0] : 'N/A'}\n'
+                                'Last Scan: ${data['lastScan'] != null ? (data['lastScan'] as Timestamp).toDate().toString().split(" ")[0] : 'N/A'}',
                             style: const TextStyle(color: Colors.white70),
                           ),
+
+
+
                           isThreeLine: true,
                           trailing: IconButton(
                         icon: const Icon(Icons.delete, color: Colors.redAccent),

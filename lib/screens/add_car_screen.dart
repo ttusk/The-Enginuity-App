@@ -319,6 +319,21 @@ class _AddCarScreenState extends State<AddCarScreen> {
         imageUrl = await _uploadImageToImgBB(_carImageFile!);
       }
 
+      // await FirebaseFirestore.instance
+      //     .collection('users')
+      //     .doc(uid)
+      //     .collection('cars')
+      //     .add({
+      //   'make': _selectedMake,
+      //   'model': _selectedModel,
+      //   'mileage': int.parse(_mileageCtrl.text),
+      //   'lastServiceDate': _lastServiceDate,
+      //   'imageUrl': imageUrl,
+      //   'createdAt': FieldValue.serverTimestamp(),
+      // });
+
+      final mileage = int.parse(_mileageCtrl.text);
+
       await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -326,11 +341,15 @@ class _AddCarScreenState extends State<AddCarScreen> {
           .add({
         'make': _selectedMake,
         'model': _selectedModel,
-        'mileage': int.parse(_mileageCtrl.text),
+        'mileage': mileage,
+        'initialMileage': mileage, // Required for 10k km check
         'lastServiceDate': _lastServiceDate,
+        'lastScan': FieldValue.serverTimestamp(), // Placeholder until real scan
         'imageUrl': imageUrl,
         'createdAt': FieldValue.serverTimestamp(),
       });
+
+
 
       Navigator.pop(context);
     } catch (e) {
