@@ -54,6 +54,13 @@ plugins {
 }
 
 android {
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+        isCoreLibraryDesugaringEnabled = true
+    }
+
+
     namespace = "com.example.enginuity_the_app"
 
     // Set compileSdkVersion to 35
@@ -92,3 +99,8 @@ flutter {
     source = "../.."  // Ensure this points to the correct Flutter source directory
 }
 
+dependencies {
+    // other dependencies...
+
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+}
