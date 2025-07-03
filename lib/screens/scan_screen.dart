@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -51,33 +50,31 @@ class _ScanScreenState extends State<ScanScreen> {
   File? _carImageFile;
   // Map to hold metric values (0.0 - 1.0) for progress bars
   final Map<String, double> _metrics = {
-    'ENGINE_RUN_TIME': 0,
     'ENGINE_RPM': 0,
     'VEHICLE_SPEED': 0,
-    'THROTTLE': 0,
-    'ENGINE_LOAD': 0,
     'COOLANT_TEMPERATURE': 0,
+    'ENGINE_LOAD': 0,
+    'THROTTLE': 0,
+    'INTAKE_AIR_TEMP': 0,
+    'FUEL_TANK': 0,
+    'CONTROL_MODULE_VOLTAGE': 0,
     'LONG_TERM_FUEL_TRIM_BANK_1': 0,
     'SHORT_TERM_FUEL_TRIM_BANK_1': 0,
-    'INTAKE_MANIFOLD_PRESSURE': 0,
-    'FUEL_TANK': 0,
-    'ABSOLUTE_THROTTLE_B': 0,
-    'PEDAL_D': 0,
-    'PEDAL_E': 0,
-    'COMMANDED_THROTTLE_ACTUATOR': 0,
-    'FUEL_AIR_COMMANDED_EQUIV_RATIO': 0,
-    'ABSOLUTE_BAROMETRIC_PRESSURE': 0,
-    'RELATIVE_THROTTLE_POSITION': 0,
-    'INTAKE_AIR_TEMP': 0,
-    'TIMING_ADVANCE': 0,
-    'CATALYST_TEMPERATURE_BANK1_SENSOR1': 0,
-    'CATALYST_TEMPERATURE_BANK1_SENSOR2': 0,
-    'CONTROL_MODULE_VOLTAGE': 0,
-    'COMMANDED_EVAPORATIVE_PURGE': 0,
-    'TIME_RUN_WITH_MIL_ON': 0,
-    'TIME_SINCE_TROUBLE_CODES_CLEARED': 0,
-    'DISTANCE_TRAVELED_WITH_MIL_ON': 0,
   };
+
+  // Top 10 most common/meaningful OBD-II metrics
+  static const List<String> _topMetrics = [
+    'ENGINE_RPM',
+    'VEHICLE_SPEED',
+    'COOLANT_TEMPERATURE',
+    'ENGINE_LOAD',
+    'THROTTLE',
+    'INTAKE_AIR_TEMP',
+    'FUEL_TANK',
+    'CONTROL_MODULE_VOLTAGE',
+    'LONG_TERM_FUEL_TRIM_BANK_1',
+    'SHORT_TERM_FUEL_TRIM_BANK_1',
+  ];
 
   @override
   void initState() {
@@ -184,152 +181,177 @@ class _ScanScreenState extends State<ScanScreen> {
 
   Future<void> _updateMetricsFromObd() async {
     final connection = ObdConnectionManager().connection;
-    if (connection == null || !connection.isConnected) return;
+    if (connection == null || !connection.isConnected) {
+      debugPrint('⚠️ SCAN: No connection available for metric update');
+      return;
+    }
+    
+    debugPrint('🔄 SCAN: Starting metric update cycle...');
+    
+    // Only poll the top 10 metrics
     final Map<String, String> pidMap = {
-      'ENGINE_RUN_TIME': '011F',
       'ENGINE_RPM': '010C',
       'VEHICLE_SPEED': '010D',
-      'THROTTLE': '0111',
-      'ENGINE_LOAD': '0104',
       'COOLANT_TEMPERATURE': '0105',
+      'ENGINE_LOAD': '0104',
+      'THROTTLE': '0111',
+      'INTAKE_AIR_TEMP': '010F',
+      'FUEL_TANK': '012F',
+      'CONTROL_MODULE_VOLTAGE': '0142',
       'LONG_TERM_FUEL_TRIM_BANK_1': '0107',
       'SHORT_TERM_FUEL_TRIM_BANK_1': '0106',
-      'INTAKE_MANIFOLD_PRESSURE': '010B',
-      'FUEL_TANK': '012F',
-      'ABSOLUTE_THROTTLE_B': '014D',
-      'PEDAL_D': '015A',
-      'PEDAL_E': '015B',
-      'COMMANDED_THROTTLE_ACTUATOR': '014C',
-      'FUEL_AIR_COMMANDED_EQUIV_RATIO': '0134',
-      'ABSOLUTE_BAROMETRIC_PRESSURE': '0133',
-      'RELATIVE_THROTTLE_POSITION': '0145',
-      'INTAKE_AIR_TEMP': '010F',
-      'TIMING_ADVANCE': '010E',
-      'CATALYST_TEMPERATURE_BANK1_SENSOR1': '013C',
-      'CATALYST_TEMPERATURE_BANK1_SENSOR2': '013D',
-      'CONTROL_MODULE_VOLTAGE': '0142',
-      'COMMANDED_EVAPORATIVE_PURGE': '012E',
-      'TIME_RUN_WITH_MIL_ON': '014D',
-      'TIME_SINCE_TROUBLE_CODES_CLEARED': '014E',
-      'DISTANCE_TRAVELED_WITH_MIL_ON': '0121',
     };
+    
     for (final entry in pidMap.entries) {
       try {
-        connection.output.add(utf8.encode('${entry.value}\r'));
-        await connection.output.allSent;
-        await Future.delayed(const Duration(milliseconds: 200));
-        final response = await connection.input!.first;
+        debugPrint('📤 SCAN: Sending PID: ${entry.key} (code: ${entry.value})');
+        final response = await ObdConnectionManager().sendObdCommand(entry.value);
+        
+        String responseStr = String.fromCharCodes(response);
+        String responseHex = response.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
+        
+        debugPrint('📥 SCAN: Raw response for ${entry.key}: "$responseStr"');
+        debugPrint('📥 SCAN: Hex response for ${entry.key}: $responseHex');
+        
+        String dataStr = _extractObdDataForPid(response, entry.value);
         final value = _parseObdResponse(entry.key, response);
+        
+        debugPrint('✅ SCAN: ${entry.key} - Extracted: "$dataStr", Parsed: $value');
+        
         setState(() {
           _metrics[entry.key] = value;
         });
-      } catch (_) {
-        // Ignore errors for now
+      } catch (e) {
+        debugPrint('❌ SCAN: Error reading PID ${entry.key}: $e');
       }
     }
+    
+    debugPrint('✅ SCAN: Metric update cycle completed');
+  }
+
+  String _extractObdDataForPid(List<int> response, String pidHex) {
+    String respStr = String.fromCharCodes(response).replaceAll(RegExp(r'[>\r\n\s]'), '');
+    
+    // Look for standard OBD response format: 41 XX YY ZZ (where XX is the PID, YY ZZ are data)
+    String pid = pidHex.length == 4 ? pidHex.substring(2, 4).toUpperCase() : pidHex.toUpperCase();
+    
+    // Simple regex to find 41 followed by the PID and data
+    RegExp obdResponse = RegExp(r'41' + pid + r'([A-Fa-f0-9]+)');
+    final match = obdResponse.firstMatch(respStr);
+    
+    if (match != null) {
+      String dataHex = match.group(1)!;
+      // Split into pairs of hex digits
+      List<String> bytes = [];
+      for (int i = 0; i < dataHex.length; i += 2) {
+        if (i + 2 <= dataHex.length) {
+          bytes.add(dataHex.substring(i, i + 2));
+        }
+      }
+      return bytes.join(' ');
+    }
+    
+    return '';
   }
 
   double _parseObdResponse(String metric, List<int> response) {
-    // Convert response to hex string
-    String hex = response
-        .map((b) => b.toRadixString(16).padLeft(2, '0'))
-        .join(' ');
-    List<String> bytes = hex.split(' ');
-    // Find the data bytes (skip echo: 2 bytes)
-    if (bytes.length < 3) return 0.0;
-    // Most OBD-II responses: [41, PID, ...data]
-    List<int> data =
-        bytes.skip(2).map((b) => int.tryParse(b, radix: 16) ?? 0).toList();
+    final Map<String, String> pidMap = {
+      'ENGINE_RPM': '010C',
+      'VEHICLE_SPEED': '010D',
+      'COOLANT_TEMPERATURE': '0105',
+      'ENGINE_LOAD': '0104',
+      'THROTTLE': '0111',
+      'INTAKE_AIR_TEMP': '010F',
+      'FUEL_TANK': '012F',
+      'CONTROL_MODULE_VOLTAGE': '0142',
+      'LONG_TERM_FUEL_TRIM_BANK_1': '0107',
+      'SHORT_TERM_FUEL_TRIM_BANK_1': '0106',
+    };
+    
+    String pidHex = pidMap[metric] ?? '';
+    String dataStr = _extractObdDataForPid(response, pidHex);
+    debugPrint('OBD ASCII cleaned for $metric ($pidHex): $dataStr');
+    
+    // Check for invalid responses
+    if (dataStr.isEmpty || dataStr.toUpperCase().contains('NO DATA') || dataStr.toUpperCase().contains('STOPPED')) {
+      return 0.0;
+    }
+    
+    // Split into hex bytes
+    List<String> hexBytes = dataStr.split(' ').where((s) => s.isNotEmpty).toList();
+    if (hexBytes.isEmpty) return 0.0;
+    
+    // Convert hex strings to integers
+    List<int> data = hexBytes.map((b) => int.tryParse(b, radix: 16) ?? 0).toList();
+    
+    // Apply standard OBD-II formulas
     double value = 0.0;
     switch (metric) {
-      case 'ENGINE_RUN_TIME': // 011F
-      case 'TIME_RUN_WITH_MIL_ON': // 014D
-      case 'TIME_SINCE_TROUBLE_CODES_CLEARED': // 014E
-      case 'DISTANCE_TRAVELED_WITH_MIL_ON': // 0121
-        if (data.length >= 2) value = (data[0] * 256 + data[1]).toDouble();
+      case 'ENGINE_RPM': // 010C: (A * 256 + B) / 4
+        if (data.length >= 2) {
+          value = ((data[0] * 256) + data[1]) / 4.0;
+        }
         break;
-      case 'ENGINE_RPM': // 010C
-        if (data.length >= 2) value = ((data[0] * 256) + data[1]) / 4.0;
+        
+      case 'VEHICLE_SPEED': // 010D: A (km/h)
+        if (data.isNotEmpty) {
+          value = data[0].toDouble();
+        }
         break;
-      case 'VEHICLE_SPEED': // 010D
-      case 'INTAKE_MANIFOLD_PRESSURE': // 010B
-      case 'ABSOLUTE_BAROMETRIC_PRESSURE': // 0133
-        if (data.isNotEmpty) value = data[0].toDouble();
+        
+      case 'COOLANT_TEMPERATURE': // 0105: A - 40 (°C)
+        if (data.isNotEmpty) {
+          value = (data[0] - 40).toDouble();
+        }
         break;
-      case 'THROTTLE': // 0111
-      case 'ENGINE_LOAD': // 0104
-      case 'FUEL_TANK': // 012F
-      case 'ABSOLUTE_THROTTLE_B': // 014D
-      case 'PEDAL_D': // 015A
-      case 'PEDAL_E': // 015B
-      case 'COMMANDED_THROTTLE_ACTUATOR': // 014C
-      case 'RELATIVE_THROTTLE_POSITION': // 0145
-      case 'COMMANDED_EVAPORATIVE_PURGE': // 012E
-        if (data.isNotEmpty) value = (data[0] * 100.0) / 255.0;
+        
+      case 'ENGINE_LOAD': // 0104: (A * 100) / 255 (%)
+        if (data.isNotEmpty) {
+          value = (data[0] * 100.0) / 255.0;
+        }
         break;
-      case 'COOLANT_TEMPERATURE': // 0105
-      case 'INTAKE_AIR_TEMP': // 010F
-        if (data.isNotEmpty) value = (data[0] - 40).toDouble();
+        
+      case 'THROTTLE': // 0111: (A * 100) / 255 (%)
+        if (data.isNotEmpty) {
+          value = (data[0] * 100.0) / 255.0;
+        }
         break;
-      case 'LONG_TERM_FUEL_TRIM_BANK_1': // 0107
-      case 'SHORT_TERM_FUEL_TRIM_BANK_1': // 0106
-        if (data.isNotEmpty) value = ((data[0] - 128) * 100.0) / 128.0;
+        
+      case 'INTAKE_AIR_TEMP': // 010F: A - 40 (°C)
+        if (data.isNotEmpty) {
+          value = (data[0] - 40).toDouble();
+        }
         break;
-      case 'FUEL_AIR_COMMANDED_EQUIV_RATIO': // 0134
-        if (data.length >= 2) value = ((data[0] * 256) + data[1]) / 32768.0;
+        
+      case 'FUEL_TANK': // 012F: (A * 100) / 255 (%)
+        if (data.isNotEmpty) {
+          value = (data[0] * 100.0) / 255.0;
+        }
         break;
-      case 'TIMING_ADVANCE': // 010E
-        if (data.isNotEmpty) value = (data[0] / 2.0) - 64.0;
+        
+      case 'CONTROL_MODULE_VOLTAGE': // 0142: (A * 256 + B) / 1000 (V)
+        if (data.length >= 2) {
+          value = ((data[0] * 256) + data[1]) / 1000.0;
+        }
         break;
-      case 'CATALYST_TEMPERATURE_BANK1_SENSOR1': // 013C
-      case 'CATALYST_TEMPERATURE_BANK1_SENSOR2': // 013D
-        if (data.length >= 2) value = ((data[0] * 256) + data[1]) / 10.0;
+        
+      case 'LONG_TERM_FUEL_TRIM_BANK_1': // 0107: ((A - 128) * 100) / 128 (%)
+        if (data.isNotEmpty) {
+          value = ((data[0] - 128) * 100.0) / 128.0;
+        }
         break;
-      case 'CONTROL_MODULE_VOLTAGE': // 0142
-        if (data.length >= 2) value = ((data[0] * 256) + data[1]) / 1000.0;
+        
+      case 'SHORT_TERM_FUEL_TRIM_BANK_1': // 0106: ((A - 128) * 100) / 128 (%)
+        if (data.isNotEmpty) {
+          value = ((data[0] - 128) * 100.0) / 128.0;
+        }
         break;
+        
       default:
         value = 0.0;
     }
-    // Normalize for progress bars (0.0-1.0) for most metrics
-    switch (metric) {
-      case 'ENGINE_RUN_TIME':
-      case 'TIME_RUN_WITH_MIL_ON':
-      case 'TIME_SINCE_TROUBLE_CODES_CLEARED':
-      case 'DISTANCE_TRAVELED_WITH_MIL_ON':
-        return (value / 600.0).clamp(0.0, 1.0); // e.g., 10 min max
-      case 'ENGINE_RPM':
-        return (value / 8000.0).clamp(0.0, 1.0); // 8000 RPM max
-      case 'VEHICLE_SPEED':
-        return (value / 240.0).clamp(0.0, 1.0); // 240 km/h max
-      case 'THROTTLE':
-      case 'ENGINE_LOAD':
-      case 'FUEL_TANK':
-      case 'ABSOLUTE_THROTTLE_B':
-      case 'PEDAL_D':
-      case 'PEDAL_E':
-      case 'COMMANDED_THROTTLE_ACTUATOR':
-      case 'RELATIVE_THROTTLE_POSITION':
-      case 'COMMANDED_EVAPORATIVE_PURGE':
-        return (value / 100.0).clamp(0.0, 1.0);
-      case 'COOLANT_TEMPERATURE':
-      case 'INTAKE_AIR_TEMP':
-        return ((value + 40.0) / 215.0).clamp(0.0, 1.0); // -40 to 175C
-      case 'LONG_TERM_FUEL_TRIM_BANK_1':
-      case 'SHORT_TERM_FUEL_TRIM_BANK_1':
-        return ((value + 100.0) / 200.0).clamp(0.0, 1.0); // -100 to +100
-      case 'FUEL_AIR_COMMANDED_EQUIV_RATIO':
-        return (value / 2.0).clamp(0.0, 1.0); // 0-2
-      case 'TIMING_ADVANCE':
-        return ((value + 64.0) / 128.0).clamp(0.0, 1.0); // -64 to +64
-      case 'CATALYST_TEMPERATURE_BANK1_SENSOR1':
-      case 'CATALYST_TEMPERATURE_BANK1_SENSOR2':
-        return (value / 1200.0).clamp(0.0, 1.0); // up to 1200C
-      case 'CONTROL_MODULE_VOLTAGE':
-        return (value / 20.0).clamp(0.0, 1.0); // up to 20V
-      default:
-        return value;
-    }
+    
+    return value;
   }
 
   void _stopRealTimeScan() async {
@@ -355,6 +377,7 @@ class _ScanScreenState extends State<ScanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('ScanScreen: ObdConnectionManager().isConnected = ${ObdConnectionManager().isConnected}');
     // Preconditions
     if (!widget.skipPreconditions && widget.carData == null) {
       return _buildPreconditionScreen(
@@ -362,7 +385,9 @@ class _ScanScreenState extends State<ScanScreen> {
         Icons.directions_car,
       );
     }
-    if (!widget.skipPreconditions && !widget.deviceConnected) {
+    // Always check the actual connection status
+    if (!widget.skipPreconditions && !ObdConnectionManager().isConnected) {
+      debugPrint('ScanScreen: Device not connected, showing precondition screen');
       return Scaffold(
         backgroundColor: const Color(0xFF0A1F26),
         appBar: AppBar(
@@ -503,55 +528,40 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   Widget _buildLatestScan() {
-    final entries = _metrics.entries.toList();
-
-    return ListView.builder(
+    return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      itemCount: entries.length,
-      itemBuilder: (context, index) {
-        final entry = entries[index];
-        final name = entry.key;
-        final value = entry.value;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('$name:', style: const TextStyle(color: Colors.white70)),
-              const SizedBox(height: 4),
-              Stack(
-                children: [
-                  Container(
-                    height: 20,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white24),
-                    ),
+      children: _topMetrics.map((metric) {
+        final value = _metrics[metric] ?? 0.0;
+        return Card(
+          color: const Color(0xFF12303B),
+          margin: const EdgeInsets.only(bottom: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _prettyMetricName(metric),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
                   ),
-                  FractionallySizedBox(
-                    widthFactor: value,
-                    child: Container(
-                      height: 20,
-                      decoration: BoxDecoration(
-                        color: Colors.white24,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '${(value * 100).toInt()}%',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
+                ),
+                Text(
+                  _formatMetric(metric, value),
+                  style: const TextStyle(
+                    color: Colors.lightGreenAccent,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         );
-      },
+      }).toList(),
     );
   }
 
@@ -656,54 +666,40 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   Widget _buildRealTimeScan() {
-    final entries = _metrics.entries.toList();
-    return ListView.builder(
+    return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      itemCount: entries.length,
-      itemBuilder: (context, index) {
-        final entry = entries[index];
-        final name = entry.key;
-        final value = entry.value;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('$name:', style: const TextStyle(color: Colors.white70)),
-              const SizedBox(height: 4),
-              Stack(
-                children: [
-                  Container(
-                    height: 20,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white24),
-                    ),
+      children: _topMetrics.map((metric) {
+        final value = _metrics[metric] ?? 0.0;
+        return Card(
+          color: const Color(0xFF12303B),
+          margin: const EdgeInsets.only(bottom: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _prettyMetricName(metric),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
                   ),
-                  FractionallySizedBox(
-                    widthFactor: value,
-                    child: Container(
-                      height: 20,
-                      decoration: BoxDecoration(
-                        color: Colors.white24,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '${(value * 100).toInt()}%',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
+                ),
+                Text(
+                  _formatMetric(metric, value),
+                  style: const TextStyle(
+                    color: Colors.lightGreenAccent,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         );
-      },
+      }).toList(),
     );
   }
 
@@ -718,11 +714,10 @@ class _ScanScreenState extends State<ScanScreen> {
     final fileName = "${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}_ml_scan.csv";
     final filePath = p.join(dir.path, fileName);
     final file = File(filePath);
-    final headers = _metrics.keys.toList();
+    final headers = _topMetrics;
     final csvContent = StringBuffer();
     csvContent.writeln(headers.join(','));
     List<List<String>> rows = [];
-    // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -735,17 +730,15 @@ class _ScanScreenState extends State<ScanScreen> {
       if (!mounted) return;
       await _updateMetricsFromObd();
       if (!mounted) return;
-      rows.add(_metrics.values.map((v) => v.toString()).toList());
-      // Update progress
+      rows.add(_topMetrics.map((k) => _metrics[k]!.toString()).toList());
       _MLScanProgressDialog.of(context)?.updateProgress(i + 1);
     }
-    // Write CSV
     for (final row in rows) {
       csvContent.writeln(row.join(','));
     }
     await file.writeAsString(csvContent.toString());
     if (!mounted) return;
-    Navigator.of(context).pop(); // Close loading dialog
+    Navigator.of(context).pop();
     // Send to /check-current-errors and /predict-faults
     List<dynamic> errors = [];
     List<dynamic> predictions = [];
@@ -806,6 +799,51 @@ class _ScanScreenState extends State<ScanScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to connect to server: $e')),
       );
+    }
+  }
+
+  // Helper to format metric values with units
+  String _formatMetric(String key, double value) {
+    switch (key) {
+      case 'ENGINE_RPM':
+        return '${value.toStringAsFixed(0)} rpm';
+      case 'VEHICLE_SPEED':
+        return '${value.toStringAsFixed(0)} km/h';
+      case 'COOLANT_TEMPERATURE':
+        return '${value.toStringAsFixed(1)} °C';
+      case 'ENGINE_LOAD':
+        return '${value.toStringAsFixed(1)} %';
+      case 'THROTTLE':
+        return '${value.toStringAsFixed(1)} %';
+      case 'INTAKE_AIR_TEMP':
+        return '${value.toStringAsFixed(1)} °C';
+      case 'FUEL_TANK':
+        return '${value.toStringAsFixed(0)} %';
+      case 'CONTROL_MODULE_VOLTAGE':
+        return '${value.toStringAsFixed(2)} V';
+      case 'LONG_TERM_FUEL_TRIM_BANK_1':
+        return '${value.toStringAsFixed(1)} %';
+      case 'SHORT_TERM_FUEL_TRIM_BANK_1':
+        return '${value.toStringAsFixed(1)} %';
+      default:
+        return value.toStringAsFixed(2);
+    }
+  }
+
+  // Helper to prettify metric names
+  String _prettyMetricName(String key) {
+    switch (key) {
+      case 'ENGINE_RPM': return 'Engine RPM';
+      case 'VEHICLE_SPEED': return 'Vehicle Speed';
+      case 'COOLANT_TEMPERATURE': return 'Coolant Temp';
+      case 'ENGINE_LOAD': return 'Engine Load';
+      case 'THROTTLE': return 'Throttle Position';
+      case 'INTAKE_AIR_TEMP': return 'Intake Air Temp';
+      case 'FUEL_TANK': return 'Fuel Tank Level';
+      case 'CONTROL_MODULE_VOLTAGE': return 'Module Voltage';
+      case 'LONG_TERM_FUEL_TRIM_BANK_1': return 'Long Term Fuel Trim';
+      case 'SHORT_TERM_FUEL_TRIM_BANK_1': return 'Short Term Fuel Trim';
+      default: return key;
     }
   }
 }

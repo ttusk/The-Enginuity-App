@@ -62,6 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
           predictions = jsonData['predictions'] ?? [];
         }
       } catch (_) {}
+      if (!mounted) return;
       await Navigator.push(
         context,
         MaterialPageRoute(
@@ -79,6 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ).showSnackBar(const SnackBar(content: Text('Select a car first.')));
         return;
       }
+      if (!mounted) return;
       await Navigator.push(
         context,
         MaterialPageRoute(
@@ -90,6 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       setState(() => _selectedIndex = 0); // Return to home after scan
     } else if (index == 3) {
+      if (!mounted) return;
       await Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const ConnectScreen()),
