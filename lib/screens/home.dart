@@ -18,73 +18,81 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  Map<String, dynamic>? _selectedCarData; // Track selected car
+  String? _selectedCarId;
   @override
   void initState() {
     super.initState();
     NotificationService.checkAndNotify(); // Call your notification checker here
   }
 
-
-
-
   int _selectedIndex = 0;
 
-void _onItemTapped(int index) async {
-  final uid = FirebaseAuth.instance.currentUser!.uid;
-  final carsColl = FirebaseFirestore.instance
-      .collection('users')
-      .doc(uid)
-      .collection('cars');
-  final carsSnapshot = await carsColl.get();
-  final hasCars = carsSnapshot.docs.isNotEmpty;
+  void _onItemTapped(int index) async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final carsColl = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('cars');
+    final carsSnapshot = await carsColl.get();
+    final hasCars = carsSnapshot.docs.isNotEmpty;
 
-  if ((index == 1 || index == 2 || index == 3) && !hasCars) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Add a car to access this feature.')),
-    );
-    return;
-  }
+    if ((index == 1 || index == 2 || index == 3) && !hasCars) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add a car to access this feature.')),
+      );
+      return;
+    }
 
-  if (index == 1) {
-    // Load last_errors.json from documents directory
-    List<dynamic> errors = [];
-    List<dynamic> predictions = [];
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File(p.join(dir.path, 'last_errors.json'));
-      if (await file.exists()) {
-        final content = await file.readAsString();
-        final jsonData = json.decode(content);
-        errors = jsonData['errors'] ?? [];
-        predictions = jsonData['predictions'] ?? [];
-      }
-    } catch (_) {}
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ErrorsScreen(
-          errors: errors,
-          predictions: predictions,
+    if (index == 1) {
+      // Load last_errors.json from documents directory
+      List<dynamic> errors = [];
+      List<dynamic> predictions = [];
+      try {
+        final dir = await getApplicationDocumentsDirectory();
+        final file = File(p.join(dir.path, 'last_errors.json'));
+        if (await file.exists()) {
+          final content = await file.readAsString();
+          final jsonData = json.decode(content);
+          errors = jsonData['errors'] ?? [];
+          predictions = jsonData['predictions'] ?? [];
+        }
+      } catch (_) {}
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (_) => ErrorsScreen(errors: errors, predictions: predictions),
         ),
-      ),
-    );
-    setState(() => _selectedIndex = 0); // Return to home after errors screen
-  } else if (index == 2) {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => ScanScreen(carData: null, deviceConnected: false)),
-    );
-    setState(() => _selectedIndex = 0); // Return to home after scan
-  } else if (index == 3) {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ConnectScreen()),
-    );
-    setState(() => _selectedIndex = 0); // Return to home after connect
-  } else {
-    setState(() => _selectedIndex = index);
+      );
+      setState(() => _selectedIndex = 0); // Return to home after errors screen
+    } else if (index == 2) {
+      // Use selected car for scan
+      if (_selectedCarData == null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Select a car first.')));
+        return;
+      }
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (_) =>
+                  ScanScreen(carData: _selectedCarData, deviceConnected: false),
+        ),
+      );
+      setState(() => _selectedIndex = 0); // Return to home after scan
+    } else if (index == 3) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const ConnectScreen()),
+      );
+      setState(() => _selectedIndex = 0); // Return to home after connect
+    } else {
+      setState(() => _selectedIndex = index);
+    }
   }
-}
 
   void _logout() async {
     await FirebaseAuth.instance.signOut();
@@ -109,7 +117,10 @@ void _onItemTapped(int index) async {
           children: [
             const SizedBox(height: 16),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20.0,
+                vertical: 8,
+              ),
               child: Row(
                 children: [
                   PopupMenuButton<String>(
@@ -117,10 +128,13 @@ void _onItemTapped(int index) async {
                     onSelected: (value) {
                       if (value == 'logout') _logout();
                     },
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(value: 'logout', child: Text('Logout')),
-                    ],
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    itemBuilder:
+                        (context) => const [
+                          PopupMenuItem(value: 'logout', child: Text('Logout')),
+                        ],
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     child: const CircleAvatar(
                       backgroundColor: Colors.grey,
                       radius: 22,
@@ -132,35 +146,48 @@ void _onItemTapped(int index) async {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       FutureBuilder<DocumentSnapshot>(
-                        future: FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(FirebaseAuth.instance.currentUser?.uid)
-                            .get(),
+                        future:
+                            FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(FirebaseAuth.instance.currentUser?.uid)
+                                .get(),
                         builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
-                            return const Text('Loading...',
-                                style: TextStyle(color: Colors.white));
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Text(
+                              'Loading...',
+                              style: TextStyle(color: Colors.white),
+                            );
                           } else if (snapshot.hasError ||
                               !snapshot.hasData ||
                               !snapshot.data!.exists) {
-                            return const Text('Hey there!',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold));
+                            return const Text(
+                              'Hey there!',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            );
                           } else {
-                            final fullName = snapshot.data!.get('fullName') ?? 'there';
-                            return Text('Hey, $fullName!',
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold));
+                            final fullName =
+                                snapshot.data!.get('fullName') ?? 'there';
+                            return Text(
+                              'Hey, $fullName!',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            );
                           }
                         },
                       ),
                       const SizedBox(height: 2),
-                      const Text('Welcome',
-                          style: TextStyle(color: Colors.white54, fontSize: 14)),
+                      const Text(
+                        'Welcome',
+                        style: TextStyle(color: Colors.white54, fontSize: 14),
+                      ),
                     ],
                   ),
                 ],
@@ -169,8 +196,10 @@ void _onItemTapped(int index) async {
             const SizedBox(height: 20),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),
-              child: Text('My Cars',
-                  style: TextStyle(color: Colors.white70, fontSize: 16)),
+              child: Text(
+                'My Cars',
+                style: TextStyle(color: Colors.white70, fontSize: 16),
+              ),
             ),
             const SizedBox(height: 10),
             Expanded(
@@ -182,8 +211,10 @@ void _onItemTapped(int index) async {
                   }
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                     return const Center(
-                      child: Text('No Cars Added',
-                          style: TextStyle(color: Colors.white70)),
+                      child: Text(
+                        'No Cars Added',
+                        style: TextStyle(color: Colors.white70),
+                      ),
                     );
                   }
 
@@ -194,62 +225,99 @@ void _onItemTapped(int index) async {
                     itemBuilder: (context, index) {
                       final doc = docs[index];
                       final data = doc.data() as Map<String, dynamic>;
+                      final isSelected = doc.id == _selectedCarId;
                       return Card(
-                        color: const Color(0xFF22313F),
+                        color:
+                            isSelected
+                                ? Colors.blueGrey
+                                : const Color(0xFF22313F),
                         margin: const EdgeInsets.symmetric(vertical: 8),
                         child: ListTile(
-                          leading: data['imageUrl'] != null
-                              ? ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              data['imageUrl'],
-                              width: 50,
-                              height: 50,
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                              : const Icon(Icons.directions_car,
-                              color: Colors.white),
-                          title: Text('${data['make']} ${data['model']}',
-                              style: const TextStyle(color: Colors.white)),
+                          leading:
+                              data['imageUrl'] != null
+                                  ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.network(
+                                      data['imageUrl'],
+                                      width: 50,
+                                      height: 50,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                  : const Icon(
+                                    Icons.directions_car,
+                                    color: Colors.white,
+                                  ),
+                          title: Text(
+                            '${data['make']} ${data['model']}',
+                            style: const TextStyle(color: Colors.white),
+                          ),
                           subtitle: Text(
                             'Mileage: ${data['mileage']} miles\n'
-                                'Last Service: ${data['lastServiceDate'] != null ? (data['lastServiceDate'] as Timestamp).toDate().toString().split(" ")[0] : 'N/A'}\n'
-                                'Last Scan: ${data['lastScan'] != null ? (data['lastScan'] as Timestamp).toDate().toString().split(" ")[0] : 'N/A'}',
+                            'Last Service: ${data['lastServiceDate'] != null ? (data['lastServiceDate'] as Timestamp).toDate().toString().split(" ")[0] : 'N/A'}\n'
+                            'Last Scan: ${data['lastScan'] != null ? (data['lastScan'] as Timestamp).toDate().toString().split(" ")[0] : 'N/A'}',
                             style: const TextStyle(color: Colors.white70),
                           ),
-
-
-
                           isThreeLine: true,
                           trailing: IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.redAccent),
-                        onPressed: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text("Delete Car"),
-                              content: const Text("Are you sure you want to delete this car?"),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, false),
-                                  child: const Text("Cancel"),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, true),
-                                  child: const Text("Delete", style: TextStyle(color: Colors.red)),
-                                ),
-                              ],
+                            icon: const Icon(
+                              Icons.delete,
+                              color: Colors.redAccent,
                             ),
-                          );
-
-                          if (confirm == true) {
-                            await doc.reference.delete();
-                          }
-                        },
-                      ),
-
-                      ),
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder:
+                                    (ctx) => AlertDialog(
+                                      title: const Text("Delete Car"),
+                                      content: const Text(
+                                        "Are you sure you want to delete this car?",
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed:
+                                              () => Navigator.pop(ctx, false),
+                                          child: const Text("Cancel"),
+                                        ),
+                                        TextButton(
+                                          onPressed:
+                                              () => Navigator.pop(ctx, true),
+                                          child: const Text(
+                                            "Delete",
+                                            style: TextStyle(color: Colors.red),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                              );
+                              if (confirm == true) {
+                                await doc.reference.delete();
+                                if (_selectedCarId == doc.id) {
+                                  setState(() {
+                                    _selectedCarId = null;
+                                    _selectedCarData = null;
+                                  });
+                                }
+                              }
+                            },
+                          ),
+                          onTap: () {
+                            setState(() {
+                              _selectedCarId = doc.id;
+                              _selectedCarData = {...data, 'id': doc.id};
+                            });
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (_) => ScanScreen(
+                                      carData: {...data, 'id': doc.id},
+                                      deviceConnected: false,
+                                    ),
+                              ),
+                            );
+                          },
+                        ),
                       );
                     },
                   );
@@ -263,7 +331,9 @@ void _onItemTapped(int index) async {
         backgroundColor: const Color(0xFF2C4D54),
         onPressed: () async {
           await Navigator.push(
-              context, MaterialPageRoute(builder: (_) => const AddCarScreen()));
+            context,
+            MaterialPageRoute(builder: (_) => const AddCarScreen()),
+          );
         },
         child: const Icon(Icons.add),
       ),
@@ -283,13 +353,6 @@ void _onItemTapped(int index) async {
           BottomNavigationBarItem(icon: Icon(Icons.share), label: ''),
         ],
       ),
-
     );
   }
 }
-
-
-
-
-
-
