@@ -18,22 +18,29 @@ class _ConnectScreenState extends State<ConnectScreen> {
   Future<bool> _requestBluetoothPermissions() async {
     final bluetoothConnect = await Permission.bluetoothConnect.request();
     final bluetoothScan = await Permission.bluetoothScan.request();
-    final location = await Permission.location.request(); // Needed for BLE and Bluetooth discovery
+    final location =
+        await Permission.location
+            .request(); // Needed for BLE and Bluetooth discovery
 
-    if (bluetoothConnect.isGranted && bluetoothScan.isGranted && location.isGranted) {
+    if (!mounted) return false;
+    if (bluetoothConnect.isGranted &&
+        bluetoothScan.isGranted &&
+        location.isGranted) {
       return true;
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bluetooth and Location permissions are required.')),
+        const SnackBar(
+          content: Text('Bluetooth and Location permissions are required.'),
+        ),
       );
       return false;
     }
   }
 
-
   Future<void> _connectToOBD() async {
     bool hasPermissions = await _requestBluetoothPermissions();
     if (!hasPermissions) return;
+    if (!mounted) return;
     setState(() {
       _connecting = true;
       _connected = false;
@@ -51,46 +58,62 @@ class _ConnectScreenState extends State<ConnectScreen> {
         await FlutterBluetoothSerial.instance.requestEnable();
       }
       // Discover devices
-      List<BluetoothDevice> devices = await FlutterBluetoothSerial.instance.getBondedDevices();
+      List<BluetoothDevice> devices =
+          await FlutterBluetoothSerial.instance.getBondedDevices();
+      if (!mounted) return;
       // Try to find an OBD device (by name, e.g., contains 'OBD' or 'ELM')
       BluetoothDevice? obdDevice;
       try {
         obdDevice = devices.firstWhere(
-          (d) => d.name != null && (d.name!.toUpperCase().contains('OBD') || d.name!.toUpperCase().contains('ELM')),
+          (d) =>
+              d.name != null &&
+              (d.name!.toUpperCase().contains('OBD') ||
+                  d.name!.toUpperCase().contains('ELM')),
         );
       } catch (_) {
         obdDevice = null;
       }
       if (obdDevice != null) {
         // Try to connect
-        bool connected = await ObdConnectionManager().connectToDevice(obdDevice);
+        bool connected = await ObdConnectionManager().connectToDevice(
+          obdDevice,
+        );
+        if (!mounted) return;
         setState(() {
           _dialogText = connected ? 'Connected!' : 'Connection failed.';
           _connected = connected;
         });
         await Future.delayed(const Duration(seconds: 2));
+        if (!mounted) return;
         Navigator.of(context).pop(); // Close dialog
         if (connected) {
+          if (!mounted) return;
           Navigator.of(context).pop(); // Go back to home
         }
         return;
       } else {
+        if (!mounted) return;
         setState(() {
           _dialogText = 'No OBD-II device found.';
         });
         await Future.delayed(const Duration(seconds: 2));
+        if (!mounted) return;
         Navigator.of(context).pop();
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _dialogText = 'Connection failed.';
       });
       await Future.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
       Navigator.of(context).pop();
     } finally {
-      setState(() {
-        _connecting = false;
-      });
+      if (mounted) {
+        setState(() {
+          _connecting = false;
+        });
+      }
     }
   }
 
@@ -100,23 +123,34 @@ class _ConnectScreenState extends State<ConnectScreen> {
       content: SizedBox(
         height: 100,
         child: Center(
-          child: _connected
-              ? Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.check_circle, color: Colors.green, size: 48),
-                    const SizedBox(height: 12),
-                    Text(_dialogText, style: const TextStyle(color: Colors.white)),
-                  ],
-                )
-              : Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const CircularProgressIndicator(),
-                    const SizedBox(height: 12),
-                    Text(_dialogText, style: const TextStyle(color: Colors.white)),
-                  ],
-                ),
+          child:
+              _connected
+                  ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.check_circle,
+                        color: Colors.green,
+                        size: 48,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _dialogText,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ],
+                  )
+                  : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 12),
+                      Text(
+                        _dialogText,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ],
+                  ),
         ),
       ),
     );
@@ -143,7 +177,11 @@ class _ConnectScreenState extends State<ConnectScreen> {
               const SizedBox(height: 8),
               const Text(
                 'Set Up',
-                style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white),
+                style: TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(height: 24),
               const Text(
@@ -156,46 +194,57 @@ class _ConnectScreenState extends State<ConnectScreen> {
                   style: TextStyle(fontSize: 15, color: Colors.white60),
                   children: [
                     TextSpan(
-                      text: 'To the OBD-II port in your car and make sure that Bluetooth is turned on. ',
+                      text:
+                          'To the OBD-II port in your car and make sure that Bluetooth is turned on. ',
                     ),
                     TextSpan(
-                      text: "Don't worry you don't need to remove the device after, we'll take good care of your car.",
-                      style: TextStyle(decoration: TextDecoration.underline, color: Colors.lightBlueAccent),
+                      text:
+                          "Don't worry you don't need to remove the device after, we'll take good care of your car.",
+                      style: TextStyle(
+                        decoration: TextDecoration.underline,
+                        color: Colors.lightBlueAccent,
+                      ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 6),
-// First image: OBD device (scaled up)
+              // First image: OBD device (scaled up)
               Center(
                 child: Image.asset(
                   'assets/images/obd_device.png',
                   width: 300, // increased width
                   height: 200, // increased height
                   fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    width: 300,
-                    height: 200,
-                    color: Colors.grey[800],
-                    child: const Center(child: Icon(Icons.image, color: Colors.white38)),
-                  ),
+                  errorBuilder:
+                      (context, error, stackTrace) => Container(
+                        width: 300,
+                        height: 200,
+                        color: Colors.grey[800],
+                        child: const Center(
+                          child: Icon(Icons.image, color: Colors.white38),
+                        ),
+                      ),
                 ),
               ),
               const SizedBox(height: 6),
 
-// Second image: Port location (larger and no container/decoration)
+              // Second image: Port location (larger and no container/decoration)
               Center(
                 child: Image.asset(
                   'assets/images/port_location_guide.png',
                   width: 420, // larger than the first image
                   height: 300,
                   fit: BoxFit.fill,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    width: 420,
-                    height: 300,
-                    color: Colors.grey[800],
-                    child: const Center(child: Icon(Icons.image, color: Colors.white38)),
-                  ),
+                  errorBuilder:
+                      (context, error, stackTrace) => Container(
+                        width: 420,
+                        height: 300,
+                        color: Colors.grey[800],
+                        child: const Center(
+                          child: Icon(Icons.image, color: Colors.white38),
+                        ),
+                      ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -208,7 +257,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
                 'You can find the OBD II port beneath the driving wheel facing downwards on the left side.',
                 style: TextStyle(fontSize: 15, color: Colors.white70),
               ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
               Center(
                 child: SizedBox(
                   width: double.infinity,

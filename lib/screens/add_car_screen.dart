@@ -236,7 +236,6 @@
 //   }
 // }
 
-
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -247,13 +246,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AddCarScreen extends StatefulWidget {
-  const AddCarScreen({Key? key}) : super(key: key);
+  const AddCarScreen({super.key});
 
   @override
-  _AddCarScreenState createState() => _AddCarScreenState();
+  AddCarScreenState createState() => AddCarScreenState();
 }
 
-class _AddCarScreenState extends State<AddCarScreen> {
+class AddCarScreenState extends State<AddCarScreen> {
   final _formKey = GlobalKey<FormState>();
   String? _selectedMake, _selectedModel;
   final _mileageCtrl = TextEditingController();
@@ -262,7 +261,9 @@ class _AddCarScreenState extends State<AddCarScreen> {
   bool _saving = false;
 
   final makes = ['MG'];
-  final models = {'MG': ['ZS']};
+  final models = {
+    'MG': ['ZS'],
+  };
   final defaultImageUrl =
       'https://cdn-icons-png.flaticon.com/512/743/743977.png';
 
@@ -299,8 +300,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
       initialDate: now,
       firstDate: DateTime(2000),
       lastDate: DateTime(now.year + 1),
-      builder: (context, child) =>
-          Theme(data: ThemeData.dark(), child: child!),
+      builder: (context, child) => Theme(data: ThemeData.dark(), child: child!),
     );
     if (picked != null) setState(() => _lastServiceDate = picked);
   }
@@ -339,22 +339,24 @@ class _AddCarScreenState extends State<AddCarScreen> {
           .doc(uid)
           .collection('cars')
           .add({
-        'make': _selectedMake,
-        'model': _selectedModel,
-        'mileage': mileage,
-        'initialMileage': mileage, // Required for 10k km check
-        'lastServiceDate': _lastServiceDate,
-        'lastScan': FieldValue.serverTimestamp(), // Placeholder until real scan
-        'imageUrl': imageUrl,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+            'make': _selectedMake,
+            'model': _selectedModel,
+            'mileage': mileage,
+            'initialMileage': mileage, // Required for 10k km check
+            'lastServiceDate': _lastServiceDate,
+            'lastScan':
+                FieldValue.serverTimestamp(), // Placeholder until real scan
+            'imageUrl': imageUrl,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
 
-
-
+      if (!mounted) return;
       Navigator.pop(context);
     } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       setState(() => _saving = false);
     }
@@ -390,118 +392,155 @@ class _AddCarScreenState extends State<AddCarScreen> {
         ),
         title: const Text('Add a Car', style: TextStyle(color: Colors.white)),
       ),
-      body: _saving
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(children: [
-            Row(children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                    color: Colors.grey[900],
-                    borderRadius: BorderRadius.circular(12)),
-                child: _carImageFile != null
-                    ? ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child:
-                  Image.file(_carImageFile!, fit: BoxFit.cover),
-                )
-                    : Image.network(defaultImageUrl),
-              ),
-              const SizedBox(width: 16),
-              Column(
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: () => _pickImage(ImageSource.camera),
-                    icon: const Icon(Icons.camera_alt, size: 18),
-                    label: const Text("Camera"),
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF22313F)),
+      body:
+          _saving
+              ? const Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[900],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child:
+                                _carImageFile != null
+                                    ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.file(
+                                        _carImageFile!,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    )
+                                    : Image.network(defaultImageUrl),
+                          ),
+                          const SizedBox(width: 16),
+                          Column(
+                            children: [
+                              ElevatedButton.icon(
+                                onPressed: () => _pickImage(ImageSource.camera),
+                                icon: const Icon(Icons.camera_alt, size: 18),
+                                label: const Text("Camera"),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF22313F),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              ElevatedButton.icon(
+                                onPressed:
+                                    () => _pickImage(ImageSource.gallery),
+                                icon: const Icon(Icons.image, size: 18),
+                                label: const Text("Gallery"),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF22313F),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 32),
+                      DropdownButtonFormField<String>(
+                        value: _selectedMake,
+                        decoration: _dec('Car Make'),
+                        items:
+                            makes
+                                .map(
+                                  (m) => DropdownMenuItem(
+                                    value: m,
+                                    child: Text(m),
+                                  ),
+                                )
+                                .toList(),
+                        onChanged:
+                            (val) => setState(() {
+                              _selectedMake = val;
+                              _selectedModel = null;
+                            }),
+                        validator: (v) => v == null ? 'Select make' : null,
+                        dropdownColor: const Color(0xFF22313F),
+                      ),
+                      const SizedBox(height: 18),
+                      DropdownButtonFormField<String>(
+                        value: _selectedModel,
+                        decoration: _dec('Car Model'),
+                        items:
+                            _selectedMake == null
+                                ? []
+                                : models[_selectedMake!]!
+                                    .map(
+                                      (m) => DropdownMenuItem(
+                                        value: m,
+                                        child: Text(m),
+                                      ),
+                                    )
+                                    .toList(),
+                        onChanged:
+                            (val) => setState(() => _selectedModel = val),
+                        validator: (v) => v == null ? 'Select model' : null,
+                        dropdownColor: const Color(0xFF22313F),
+                      ),
+                      const SizedBox(height: 18),
+                      TextFormField(
+                        controller: _mileageCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: _dec('Car Mileage (Miles)'),
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Enter mileage';
+                          if (int.tryParse(v) == null) {
+                            return 'Enter valid number';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 18),
+                      GestureDetector(
+                        onTap: _pickDate,
+                        child: AbsorbPointer(
+                          child: TextFormField(
+                            decoration: _dec(
+                              'Last Service Date',
+                            ).copyWith(hintText: 'dd/MM/yyyy'),
+                            controller: TextEditingController(
+                              text:
+                                  _lastServiceDate == null
+                                      ? ''
+                                      : DateFormat(
+                                        'dd/MM/yyyy',
+                                      ).format(_lastServiceDate!),
+                            ),
+                            validator:
+                                (_) =>
+                                    _lastServiceDate == null
+                                        ? 'Select date'
+                                        : null,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      ElevatedButton(
+                        onPressed: _save,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF22313F),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          textStyle: const TextStyle(fontSize: 18),
+                        ),
+                        child: const Text("ADD"),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  ElevatedButton.icon(
-                    onPressed: () => _pickImage(ImageSource.gallery),
-                    icon: const Icon(Icons.image, size: 18),
-                    label: const Text("Gallery"),
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF22313F)),
-                  ),
-                ],
-              )
-            ]),
-            const SizedBox(height: 32),
-            DropdownButtonFormField<String>(
-              value: _selectedMake,
-              decoration: _dec('Car Make'),
-              items: makes
-                  .map((m) =>
-                  DropdownMenuItem(value: m, child: Text(m)))
-                  .toList(),
-              onChanged: (val) => setState(
-                      () {_selectedMake = val; _selectedModel = null;}),
-              validator: (v) => v == null ? 'Select make' : null,
-              dropdownColor: const Color(0xFF22313F),
-            ),
-            const SizedBox(height: 18),
-            DropdownButtonFormField<String>(
-              value: _selectedModel,
-              decoration: _dec('Car Model'),
-              items: _selectedMake == null
-                  ? []
-                  : models[_selectedMake!]!
-                  .map((m) =>
-                  DropdownMenuItem(value: m, child: Text(m)))
-                  .toList(),
-              onChanged: (val) => setState(() => _selectedModel = val),
-              validator: (v) => v == null ? 'Select model' : null,
-              dropdownColor: const Color(0xFF22313F),
-            ),
-            const SizedBox(height: 18),
-            TextFormField(
-              controller: _mileageCtrl,
-              keyboardType: TextInputType.number,
-              decoration: _dec('Car Mileage (Miles)'),
-              validator: (v) {
-                if (v == null || v.isEmpty) return 'Enter mileage';
-                if (int.tryParse(v) == null) return 'Enter valid number';
-                return null;
-              },
-            ),
-            const SizedBox(height: 18),
-            GestureDetector(
-              onTap: _pickDate,
-              child: AbsorbPointer(
-                child: TextFormField(
-                  decoration: _dec('Last Service Date')
-                      .copyWith(hintText: 'dd/MM/yyyy'),
-                  controller: TextEditingController(
-                      text: _lastServiceDate == null
-                          ? ''
-                          : DateFormat('dd/MM/yyyy')
-                          .format(_lastServiceDate!)),
-                  validator: (_) =>
-                  _lastServiceDate == null ? 'Select date' : null,
                 ),
               ),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: _save,
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF22313F),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  textStyle: const TextStyle(fontSize: 18)),
-              child: const Text("ADD"),
-            )
-          ]),
-        ),
-      ),
     );
   }
 }

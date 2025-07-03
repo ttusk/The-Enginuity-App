@@ -6,7 +6,12 @@ class ErrorsScreen extends StatelessWidget {
   final List<dynamic> predictions;
   final bool showMLMessage;
 
-  const ErrorsScreen({Key? key, required this.errors, required this.predictions, this.showMLMessage = false}) : super(key: key);
+  const ErrorsScreen({
+    super.key,
+    required this.errors,
+    required this.predictions,
+    this.showMLMessage = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +40,11 @@ class ErrorsScreen extends StatelessWidget {
               width: double.infinity,
               height: 180,
               color: Colors.black54,
-              child: const Icon(Icons.directions_car, color: Colors.white70, size: 100),
+              child: const Icon(
+                Icons.directions_car,
+                color: Colors.white70,
+                size: 100,
+              ),
             ),
             Container(
               color: const Color(0xFF12303B),
@@ -47,8 +56,18 @@ class ErrorsScreen extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('ZS', style: TextStyle(color: Colors.white54, fontSize: 14)),
-                      Text('MG', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+                      Text(
+                        'ZS',
+                        style: TextStyle(color: Colors.white54, fontSize: 14),
+                      ),
+                      Text(
+                        'MG',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ],
                   ),
                   Icon(Icons.search, color: Colors.white70),
@@ -96,7 +115,10 @@ class ErrorsScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.white24),
                     borderRadius: BorderRadius.circular(20),
@@ -111,8 +133,13 @@ class ErrorsScreen extends StatelessWidget {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1E3A42),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 8,
+                  ),
                 ),
                 onPressed: () {},
                 child: const Text('FIX'),
@@ -133,4 +160,4 @@ class ErrorsScreen extends StatelessWidget {
       ),
     );
   }
-} 
+}

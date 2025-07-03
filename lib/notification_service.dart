@@ -1,5 +1,5 @@
 // notification_service.dart
-import 'dart:io';
+// import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -22,17 +22,19 @@ class NotificationService {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
-    final carsSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('cars')
-        .get();
+    final carsSnapshot =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('cars')
+            .get();
 
     for (var doc in carsSnapshot.docs) {
       final data = doc.data();
 
       final double mileage = (data['mileage'] ?? 0).toDouble();
-      final double initialMileage = (data['initialMileage'] ?? mileage).toDouble();
+      final double initialMileage =
+          (data['initialMileage'] ?? mileage).toDouble();
       final Timestamp? lastServiceTs = data['lastServiceDate'];
       final String carName = '${data['make']} ${data['model']}';
 
@@ -87,16 +89,21 @@ class NotificationService {
     );
 
     const iosDetails = DarwinNotificationDetails();
-    const platformDetails = NotificationDetails(android: androidDetails, iOS: iosDetails);
+    const platformDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
 
     await _notifications.zonedSchedule(
       id,
       title,
       body,
-      tz.TZDateTime.now(tz.local).add(const Duration(seconds: 2)), // show after short delay
+      tz.TZDateTime.now(
+        tz.local,
+      ).add(const Duration(seconds: 2)), // show after short delay
       platformDetails,
       uiLocalNotificationDateInterpretation:
-      UILocalNotificationDateInterpretation.absoluteTime,
+          UILocalNotificationDateInterpretation.absoluteTime,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
     );

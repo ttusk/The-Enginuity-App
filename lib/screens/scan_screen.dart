@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -13,22 +13,24 @@ import 'errors_screen.dart';
 import '../obd_connection_manager.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-
 class ScanScreen extends StatefulWidget {
   final Map<String, dynamic>? carData;
   // You can pass the device connection status from outside when real integration is ready
   final bool deviceConnected;
   final bool skipPreconditions;
 
-
-  const ScanScreen({super.key, required this.carData, this.deviceConnected = false, this.skipPreconditions = false});
+  const ScanScreen({
+    super.key,
+    required this.carData,
+    this.deviceConnected = false,
+    this.skipPreconditions = false,
+  });
 
   @override
   State<ScanScreen> createState() => _ScanScreenState();
 }
 
 class _ScanScreenState extends State<ScanScreen> {
-
   Future<void> _updateLastScanInFirestore({
     required String carId,
     required DateTime scanTime,
@@ -46,8 +48,6 @@ class _ScanScreenState extends State<ScanScreen> {
     }
   }
 
-
-  final List<_ScanRecord> _history = [];
   File? _carImageFile;
   // Map to hold metric values (0.0 - 1.0) for progress bars
   final Map<String, double> _metrics = {
@@ -137,9 +137,15 @@ class _ScanScreenState extends State<ScanScreen> {
               title: const Text('ML Scan Size'),
               content: DropdownButton<int>(
                 value: selectedSize,
-                items: [20, 40, 60, 80, 100]
-                    .map((v) => DropdownMenuItem(value: v, child: Text('$v readings')))
-                    .toList(),
+                items:
+                    [20, 40, 60, 80, 100]
+                        .map(
+                          (v) => DropdownMenuItem(
+                            value: v,
+                            child: Text('$v readings'),
+                          ),
+                        )
+                        .toList(),
                 onChanged: (v) => setState(() => selectedSize = v ?? 20),
               ),
               actions: [
@@ -225,12 +231,15 @@ class _ScanScreenState extends State<ScanScreen> {
 
   double _parseObdResponse(String metric, List<int> response) {
     // Convert response to hex string
-    String hex = response.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
+    String hex = response
+        .map((b) => b.toRadixString(16).padLeft(2, '0'))
+        .join(' ');
     List<String> bytes = hex.split(' ');
     // Find the data bytes (skip echo: 2 bytes)
     if (bytes.length < 3) return 0.0;
     // Most OBD-II responses: [41, PID, ...data]
-    List<int> data = bytes.skip(2).map((b) => int.tryParse(b, radix: 16) ?? 0).toList();
+    List<int> data =
+        bytes.skip(2).map((b) => int.tryParse(b, radix: 16) ?? 0).toList();
     double value = 0.0;
     switch (metric) {
       case 'ENGINE_RUN_TIME': // 011F
@@ -338,7 +347,6 @@ class _ScanScreenState extends State<ScanScreen> {
     }
   }
 
-
   @override
   void dispose() {
     _realTimeTimer?.cancel();
@@ -349,7 +357,10 @@ class _ScanScreenState extends State<ScanScreen> {
   Widget build(BuildContext context) {
     // Preconditions
     if (!widget.skipPreconditions && widget.carData == null) {
-      return _buildPreconditionScreen('Add a car to start scanning', Icons.directions_car);
+      return _buildPreconditionScreen(
+        'Add a car to start scanning',
+        Icons.directions_car,
+      );
     }
     if (!widget.skipPreconditions && !widget.deviceConnected) {
       return Scaffold(
@@ -390,21 +401,21 @@ class _ScanScreenState extends State<ScanScreen> {
             SizedBox(
               width: double.infinity,
               height: 180,
-              child: _carImageFile == null
-                  ? Container(
-                      color: Colors.black54,
-                      child: Center(
-                        child: ElevatedButton(
-                          onPressed: _pickCarImage,
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.white24),
-                          child: const Text('Add Car Image'),
+              child:
+                  _carImageFile == null
+                      ? Container(
+                        color: Colors.black54,
+                        child: Center(
+                          child: ElevatedButton(
+                            onPressed: _pickCarImage,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white24,
+                            ),
+                            child: const Text('Add Car Image'),
+                          ),
                         ),
-                      ),
-                    )
-                  : Image.file(
-                      _carImageFile!,
-                      fit: BoxFit.cover,
-                    ),
+                      )
+                      : Image.file(_carImageFile!, fit: BoxFit.cover),
             ),
             Container(
               color: const Color(0xFF12303B),
@@ -416,8 +427,21 @@ class _ScanScreenState extends State<ScanScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(model, style: const TextStyle(color: Colors.white54, fontSize: 14)),
-                      Text(make, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+                      Text(
+                        model,
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        make,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ],
                   ),
                   const Icon(Icons.search, color: Colors.white70),
@@ -448,25 +472,30 @@ class _ScanScreenState extends State<ScanScreen> {
           child: SizedBox(
             width: double.infinity,
             height: 50,
-            child: _realTimeScanning
-                ? ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child:
+                _realTimeScanning
+                    ? ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: _stopRealTimeScan,
+                      icon: const Icon(Icons.stop),
+                      label: const Text('Stop Scan'),
+                    )
+                    : ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1E3A42),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: _showScanTypeDialog,
+                      icon: const Icon(Icons.search),
+                      label: const Text('Scan Now'),
                     ),
-                    onPressed: _stopRealTimeScan,
-                    icon: const Icon(Icons.stop),
-                    label: const Text('Stop Scan'),
-                  )
-                : ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E3A42),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: _showScanTypeDialog,
-                    icon: const Icon(Icons.search),
-                    label: const Text('Scan Now'),
-                  ),
           ),
         ),
       ),
@@ -488,7 +517,7 @@ class _ScanScreenState extends State<ScanScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(name + ':', style: const TextStyle(color: Colors.white70)),
+              Text('$name:', style: const TextStyle(color: Colors.white70)),
               const SizedBox(height: 4),
               Stack(
                 children: [
@@ -509,8 +538,11 @@ class _ScanScreenState extends State<ScanScreen> {
                       ),
                       alignment: Alignment.center,
                       child: Text(
-                        (value * 100).toInt().toString() + '%',
-                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                        '${(value * 100).toInt()}%',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   ),
@@ -534,7 +566,10 @@ class _ScanScreenState extends State<ScanScreen> {
         final history = snapshot.data!;
         if (history.isEmpty) {
           return const Center(
-            child: Text('No scan history yet', style: TextStyle(color: Colors.white54)),
+            child: Text(
+              'No scan history yet',
+              style: TextStyle(color: Colors.white54),
+            ),
           );
         }
         return ListView.builder(
@@ -542,17 +577,25 @@ class _ScanScreenState extends State<ScanScreen> {
           itemCount: history.length,
           itemBuilder: (context, index) {
             final rec = history[index];
-            final formattedDate = DateFormat('dd/MM/yyyy HH:mm').format(rec.date);
+            final formattedDate = DateFormat(
+              'dd/MM/yyyy HH:mm',
+            ).format(rec.date);
             return Padding(
               padding: const EdgeInsets.only(bottom: 12.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(formattedDate, style: const TextStyle(color: Colors.white)),
+                  Text(
+                    formattedDate,
+                    style: const TextStyle(color: Colors.white),
+                  ),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1E3A42),
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 8,
+                      ),
                     ),
                     onPressed: () => OpenFile.open(rec.path),
                     child: const Text('Open'),
@@ -568,13 +611,19 @@ class _ScanScreenState extends State<ScanScreen> {
 
   Future<List<_ScanRecord>> _getScanHistory() async {
     final dir = await getApplicationDocumentsDirectory();
-    final allCsvs = dir
-        .listSync()
-        .whereType<File>()
-        .where((f) => f.path.endsWith('_scan.csv'))
-        .toList()
-      ..sort((a, b) => b.statSync().modified.compareTo(a.statSync().modified));
-    return allCsvs.take(5).map((f) => _ScanRecord(f.statSync().modified, f.path)).toList();
+    final allCsvs =
+        dir
+            .listSync()
+            .whereType<File>()
+            .where((f) => f.path.endsWith('_scan.csv'))
+            .toList()
+          ..sort(
+            (a, b) => b.statSync().modified.compareTo(a.statSync().modified),
+          );
+    return allCsvs
+        .take(5)
+        .map((f) => _ScanRecord(f.statSync().modified, f.path))
+        .toList();
   }
 
   // Helper to build beautiful precondition screens
@@ -620,7 +669,7 @@ class _ScanScreenState extends State<ScanScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(name + ':', style: const TextStyle(color: Colors.white70)),
+              Text('$name:', style: const TextStyle(color: Colors.white70)),
               const SizedBox(height: 4),
               Stack(
                 children: [
@@ -641,8 +690,11 @@ class _ScanScreenState extends State<ScanScreen> {
                       ),
                       alignment: Alignment.center,
                       child: Text(
-                        (value * 100).toInt().toString() + '%',
-                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                        '${(value * 100).toInt()}%',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   ),
@@ -663,7 +715,7 @@ class _ScanScreenState extends State<ScanScreen> {
       return;
     }
     final dir = await getApplicationDocumentsDirectory();
-    final fileName = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now()) + '_ml_scan.csv';
+    final fileName = "${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}_ml_scan.csv";
     final filePath = p.join(dir.path, fileName);
     final file = File(filePath);
     final headers = _metrics.keys.toList();
@@ -680,7 +732,9 @@ class _ScanScreenState extends State<ScanScreen> {
     );
     for (int i = 0; i < scanSize; i++) {
       await Future.delayed(const Duration(seconds: 1));
+      if (!mounted) return;
       await _updateMetricsFromObd();
+      if (!mounted) return;
       rows.add(_metrics.values.map((v) => v.toString()).toList());
       // Update progress
       _MLScanProgressDialog.of(context)?.updateProgress(i + 1);
@@ -690,32 +744,43 @@ class _ScanScreenState extends State<ScanScreen> {
       csvContent.writeln(row.join(','));
     }
     await file.writeAsString(csvContent.toString());
+    if (!mounted) return;
     Navigator.of(context).pop(); // Close loading dialog
     // Send to /check-current-errors and /predict-faults
     List<dynamic> errors = [];
     List<dynamic> predictions = [];
     try {
       // /check-current-errors
-      final request1 = http.MultipartRequest('POST', Uri.parse('http://localhost:5000/check-current-errors'));
+      final request1 = http.MultipartRequest(
+        'POST',
+        Uri.parse('http://localhost:5000/check-current-errors'),
+      );
       request1.files.add(await http.MultipartFile.fromPath('file', filePath));
       final streamedResponse1 = await request1.send();
+      if (!mounted) return;
       final response1 = await http.Response.fromStream(streamedResponse1);
+      if (!mounted) return;
       if (response1.statusCode == 200) {
         final jsonResponse = json.decode(response1.body);
         errors = jsonResponse['errors'] ?? [];
       }
       // /predict-faults
-      final request2 = http.MultipartRequest('POST', Uri.parse('http://localhost:5000/predict-faults'));
+      final request2 = http.MultipartRequest(
+        'POST',
+        Uri.parse('http://localhost:5000/predict-faults'),
+      );
       request2.files.add(await http.MultipartFile.fromPath('file', filePath));
       final streamedResponse2 = await request2.send();
+      if (!mounted) return;
       final response2 = await http.Response.fromStream(streamedResponse2);
+      if (!mounted) return;
       if (response2.statusCode == 200) {
         final jsonResponse = json.decode(response2.body);
         predictions = jsonResponse['predictions'] ?? [];
       }
       final scanTime = DateTime.now();
 
-// Firestore update
+      // Firestore update
       if (widget.carData != null && widget.carData!['id'] != null) {
         await _updateLastScanInFirestore(
           carId: widget.carData!['id'],
@@ -725,7 +790,8 @@ class _ScanScreenState extends State<ScanScreen> {
         );
       }
 
-// Navigate to results screen
+      // Navigate to results screen
+      if (!mounted) return;
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => ErrorsScreen(
@@ -735,8 +801,8 @@ class _ScanScreenState extends State<ScanScreen> {
           ),
         ),
       );
-
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to connect to server: $e')),
       );
@@ -757,6 +823,7 @@ class _MLScanProgressDialog extends StatefulWidget {
   static _MLScanProgressDialogState? of(BuildContext context) {
     return context.findAncestorStateOfType<_MLScanProgressDialogState>();
   }
+
   @override
   _MLScanProgressDialogState createState() => _MLScanProgressDialogState();
 }
@@ -768,6 +835,7 @@ class _MLScanProgressDialogState extends State<_MLScanProgressDialog> {
       progress = value;
     });
   }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(

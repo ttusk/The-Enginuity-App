@@ -14,6 +14,7 @@ class _SplashScreenState extends State<SplashScreen> {
     super.initState();
 
     Future.delayed(const Duration(seconds: 3), () {
+      if (!mounted) return;
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         // User is logged in, go to Home screen

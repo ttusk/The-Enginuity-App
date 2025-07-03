@@ -35,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
         .doc(uid)
         .collection('cars');
     final carsSnapshot = await carsColl.get();
+    if (!mounted) return;
     final hasCars = carsSnapshot.docs.isNotEmpty;
 
     if ((index == 1 || index == 2 || index == 3) && !hasCars) {
@@ -50,9 +51,12 @@ class _HomeScreenState extends State<HomeScreen> {
       List<dynamic> predictions = [];
       try {
         final dir = await getApplicationDocumentsDirectory();
+        if (!mounted) return;
         final file = File(p.join(dir.path, 'last_errors.json'));
         if (await file.exists()) {
+          if (!mounted) return;
           final content = await file.readAsString();
+          if (!mounted) return;
           final jsonData = json.decode(content);
           errors = jsonData['errors'] ?? [];
           predictions = jsonData['predictions'] ?? [];
@@ -65,6 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
               (_) => ErrorsScreen(errors: errors, predictions: predictions),
         ),
       );
+      if (!mounted) return;
       setState(() => _selectedIndex = 0); // Return to home after errors screen
     } else if (index == 2) {
       // Use selected car for scan
@@ -82,12 +87,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   ScanScreen(carData: _selectedCarData, deviceConnected: false),
         ),
       );
+      if (!mounted) return;
       setState(() => _selectedIndex = 0); // Return to home after scan
     } else if (index == 3) {
       await Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const ConnectScreen()),
       );
+      if (!mounted) return;
       setState(() => _selectedIndex = 0); // Return to home after connect
     } else {
       setState(() => _selectedIndex = index);

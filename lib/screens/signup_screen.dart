@@ -13,11 +13,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController fullNameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
   bool agreeToTerms = false;
   bool isLoading = false;
 
   Future<void> _signUp() async {
+    if (!mounted) return;
+
     final name = fullNameController.text.trim();
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
@@ -31,31 +34,34 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
 
     if (password != confirmPassword) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Passwords do not match")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Passwords do not match")));
       return;
     }
 
     try {
       setState(() => isLoading = true);
 
-      UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
+      if (!mounted) return;
 
-      await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
-        'fullName': name,
-        'email': email,
-        'createdAt': Timestamp.now(),
-      });
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .set({
+            'fullName': name,
+            'email': email,
+            'createdAt': Timestamp.now(),
+          });
+      if (!mounted) return;
 
       Navigator.pushReplacementNamed(context, '/home');
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? "Signup error")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message ?? "Signup error")));
     } finally {
       setState(() => isLoading = false);
     }
@@ -79,7 +85,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
               const SizedBox(height: 20),
               const Text(
                 'Sign Up',
-                style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.white),
+                style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(height: 30),
               _buildTextField(fullNameController, 'Full Name'),
@@ -88,7 +98,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
               const SizedBox(height: 20),
               _buildTextField(passwordController, 'Password', obscure: true),
               const SizedBox(height: 20),
-              _buildTextField(confirmPasswordController, 'Confirm Password', obscure: true),
+              _buildTextField(
+                confirmPasswordController,
+                'Confirm Password',
+                obscure: true,
+              ),
               const SizedBox(height: 20),
               Row(
                 children: [
@@ -97,7 +111,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     onChanged: (value) => setState(() => agreeToTerms = value!),
                   ),
                   const Expanded(
-                    child: Text('I agree with privacy and policy', style: TextStyle(color: Colors.white)),
+                    child: Text(
+                      'I agree with privacy and policy',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
                 ],
               ),
@@ -108,7 +125,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2B4752),
                     padding: const EdgeInsets.all(16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                   onPressed: isLoading ? null : _signUp,
                   child: Text(isLoading ? "Creating..." : "Create Account"),
@@ -118,10 +137,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('Already Have An Account?', style: TextStyle(color: Colors.white)),
+                  const Text(
+                    'Already Have An Account?',
+                    style: TextStyle(color: Colors.white),
+                  ),
                   TextButton(
                     onPressed: () => Navigator.pushNamed(context, '/login'),
-                    child: const Text('Sign in', style: TextStyle(color: Colors.lightBlueAccent)),
+                    child: const Text(
+                      'Sign in',
+                      style: TextStyle(color: Colors.lightBlueAccent),
+                    ),
                   ),
                 ],
               ),
@@ -132,7 +157,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String hint, {bool obscure = false}) {
+  Widget _buildTextField(
+    TextEditingController controller,
+    String hint, {
+    bool obscure = false,
+  }) {
     return TextField(
       controller: controller,
       obscureText: obscure,

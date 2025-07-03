@@ -22,14 +22,9 @@ class CustomButton extends StatelessWidget {
         backgroundColor: buttonColor,
         foregroundColor: textColor,
         minimumSize: const Size.fromHeight(50),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      child: Text(
-        text,
-        style: TextStyle(fontSize: 16, color: textColor),
-      ),
+      child: Text(text, style: TextStyle(fontSize: 16, color: textColor)),
     );
   }
 }

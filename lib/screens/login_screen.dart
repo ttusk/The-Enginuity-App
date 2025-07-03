@@ -17,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController passwordController = TextEditingController();
 
   Future<void> _login() async {
+    if (!mounted) return;
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
@@ -32,9 +33,11 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       UserCredential userCredential = await FirebaseAuth.instance
           .signInWithEmailAndPassword(email: email, password: password);
-
+      if (!mounted) return;
       final uid = userCredential.user!.uid;
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (!mounted) return;
 
       if (doc.exists) {
         final fullName = doc.data()!['fullName'];
@@ -43,9 +46,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
       Navigator.pushReplacementNamed(context, '/home');
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? "Login failed")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message ?? "Login failed")));
     } finally {
       setState(() => isLoading = false);
     }
@@ -76,7 +79,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 20),
                 const Text(
                   'Log In',
-                  style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
                 const SizedBox(height: 30),
                 TextField(
@@ -118,13 +125,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         });
                       },
                     ),
-                    const Text('Remember Me', style: TextStyle(color: Colors.white)),
+                    const Text(
+                      'Remember Me',
+                      style: TextStyle(color: Colors.white),
+                    ),
                     const Spacer(),
                     TextButton(
                       onPressed: () {
                         // TODO: Implement forgot password functionality
                       },
-                      child: const Text('Forgot Password?', style: TextStyle(color: Colors.white70)),
+                      child: const Text(
+                        'Forgot Password?',
+                        style: TextStyle(color: Colors.white70),
+                      ),
                     ),
                   ],
                 ),
@@ -142,22 +155,33 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 30),
-                const Center(child: Text('Or Sign in with', style: TextStyle(color: Colors.white54))),
+                const Center(
+                  child: Text(
+                    'Or Sign in with',
+                    style: TextStyle(color: Colors.white54),
+                  ),
+                ),
                 const SizedBox(height: 30),
                 Center(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text("Don't have an account?", style: TextStyle(color: Colors.white)),
+                      const Text(
+                        "Don't have an account?",
+                        style: TextStyle(color: Colors.white),
+                      ),
                       TextButton(
                         onPressed: () {
                           Navigator.pushNamed(context, '/signup');
                         },
-                        child: const Text('Sign up', style: TextStyle(color: Colors.lightBlueAccent)),
+                        child: const Text(
+                          'Sign up',
+                          style: TextStyle(color: Colors.lightBlueAccent),
+                        ),
                       ),
                     ],
                   ),
-                )
+                ),
               ],
             ),
           ),

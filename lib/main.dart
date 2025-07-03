@@ -15,9 +15,10 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}): super(key: key);
+  const MyApp({super.key});
 
-  @override Widget build(BuildContext c) {
+  @override
+  Widget build(BuildContext c) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Enginuity',
@@ -29,8 +30,8 @@ class MyApp extends StatelessWidget {
         '/signup': (context) => const SignUpScreen(),
         '/start-screen': (context) => const StartScreen(),
         '/login': (context) => const LoginScreen(),
-        '/home': (context) => const HomeScreen()
-       },
+        '/home': (context) => const HomeScreen(),
+      },
     );
   }
 }
