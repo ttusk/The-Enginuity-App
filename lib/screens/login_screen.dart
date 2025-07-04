@@ -41,7 +41,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (doc.exists) {
         final fullName = doc.data()!['fullName'];
-        print("Welcome back, $fullName");
+        debugPrint("Welcome back, $fullName");
       }
 
       Navigator.pushReplacementNamed(context, '/home');
@@ -109,98 +109,107 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 30),
-                TextField(
-                  controller: emailController,
-                  decoration: const InputDecoration(
-                    hintText: 'Email',
-                    hintStyle: TextStyle(color: Colors.white70),
-                    filled: true,
-                    fillColor: Colors.black45,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(10)),
-                    ),
-                  ),
-                  style: const TextStyle(color: Colors.white),
-                ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    hintText: 'Password',
-                    hintStyle: TextStyle(color: Colors.white70),
-                    filled: true,
-                    fillColor: Colors.black45,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(10)),
-                    ),
-                  ),
-                  style: const TextStyle(color: Colors.white),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Checkbox(
-                      value: rememberMe,
-                      onChanged: (value) {
-                        setState(() {
-                          rememberMe = value!;
-                        });
-                      },
-                    ),
-                    const Text(
-                      'Remember Me',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    const Spacer(),
-                    TextButton(
-                      onPressed: _forgotPassword,
-                      child: const Text(
-                        'Forgot Password?',
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: CustomButton(
-                      text: isLoading ? 'Logging in...' : 'Login',
-                      buttonColor: const Color(0xFF2B4752),
-                      textColor: Colors.white,
-                      onPressed: isLoading ? null : () => _login(),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 30),
-                const Center(
-                  child: Text(
-                    'Or Sign in with',
-                    style: TextStyle(color: Colors.white54),
-                  ),
-                ),
-                const SizedBox(height: 30),
-                Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        "Don't have an account?",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pushNamed(context, '/signup');
-                        },
-                        child: const Text(
-                          'Sign up',
-                          style: TextStyle(color: Colors.lightBlueAccent),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextField(
+                          controller: emailController,
+                          decoration: const InputDecoration(
+                            hintText: 'Email',
+                            hintStyle: TextStyle(color: Colors.white70),
+                            filled: true,
+                            fillColor: Colors.black45,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.all(Radius.circular(10)),
+                            ),
+                          ),
+                          style: const TextStyle(color: Colors.white),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 20),
+                        TextField(
+                          controller: passwordController,
+                          obscureText: true,
+                          decoration: const InputDecoration(
+                            hintText: 'Password',
+                            hintStyle: TextStyle(color: Colors.white70),
+                            filled: true,
+                            fillColor: Colors.black45,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.all(Radius.circular(10)),
+                            ),
+                          ),
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: rememberMe,
+                              onChanged: (value) {
+                                setState(() {
+                                  rememberMe = value!;
+                                });
+                              },
+                            ),
+                            const Text(
+                              'Remember Me',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            const Spacer(),
+                            TextButton(
+                              onPressed: _forgotPassword,
+                              child: const Text(
+                                'Forgot Password?',
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: CustomButton(
+                              text: isLoading ? 'Logging in...' : 'Login',
+                              buttonColor: const Color(0xFF2B4752),
+                              textColor: Colors.white,
+                              onPressed: isLoading ? null : () => _login(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 30),
+                        const Center(
+                          child: Text(
+                            'Or Sign in with',
+                            style: TextStyle(color: Colors.white54),
+                          ),
+                        ),
+                        const SizedBox(height: 30),
+                        Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text(
+                                "Don't have an account?",
+                                style: TextStyle(color: Colors.white),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pushNamed(context, '/signup');
+                                },
+                                child: const Text(
+                                  'Sign up',
+                                  style: TextStyle(color: Colors.lightBlueAccent),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

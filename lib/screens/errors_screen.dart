@@ -1,17 +1,104 @@
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:io';
+
 import 'home.dart';
 
-class ErrorsScreen extends StatelessWidget {
-  final List<dynamic> errors;
-  final List<dynamic> predictions;
-  final bool showMLMessage;
+class ErrorsScreen extends StatefulWidget {
+  const ErrorsScreen({super.key});
 
-  const ErrorsScreen({
-    super.key,
-    required this.errors,
-    required this.predictions,
-    this.showMLMessage = false,
-  });
+  @override
+  State<ErrorsScreen> createState() => _ErrorsScreenState();
+}
+
+class _ErrorsScreenState extends State<ErrorsScreen> {
+  List<dynamic> errors = [];
+  List<dynamic> predictions = [];
+  bool isLoading = true;
+  bool hasCsvFiles = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLatestCsvData();
+  }
+
+  Future<void> _loadLatestCsvData() async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final allCsvs = dir
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('_monitoring.csv'))
+          .toList()
+        ..sort((a, b) => b.statSync().modified.compareTo(a.statSync().modified));
+
+      if (allCsvs.isEmpty) {
+        setState(() {
+          hasCsvFiles = false;
+          isLoading = false;
+        });
+        return;
+      }
+
+      setState(() {
+        hasCsvFiles = true;
+      });
+
+      final latestCsv = allCsvs.first;
+      
+      // Send to prediction endpoint
+      try {
+        final request1 = http.MultipartRequest(
+          'POST',
+          Uri.parse('http://localhost:5000/predict-faults'),
+        );
+        request1.files.add(await http.MultipartFile.fromPath('file', latestCsv.path));
+        final streamedResponse1 = await request1.send();
+        final response1 = await http.Response.fromStream(streamedResponse1);
+        
+        if (response1.statusCode == 200) {
+          final jsonResponse = json.decode(response1.body);
+          setState(() {
+            predictions = jsonResponse['predictions'] ?? [];
+          });
+        }
+      } catch (e) {
+        debugPrint('Error getting predictions: $e');
+      }
+
+      // Send to check errors endpoint
+      try {
+        final request2 = http.MultipartRequest(
+          'POST',
+          Uri.parse('http://localhost:5000/check-current-errors'),
+        );
+        request2.files.add(await http.MultipartFile.fromPath('file', latestCsv.path));
+        final streamedResponse2 = await request2.send();
+        final response2 = await http.Response.fromStream(streamedResponse2);
+        
+        if (response2.statusCode == 200) {
+          final jsonResponse = json.decode(response2.body);
+          setState(() {
+            errors = jsonResponse['errors'] ?? [];
+          });
+        }
+      } catch (e) {
+        debugPrint('Error getting errors: $e');
+      }
+
+      setState(() {
+        isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading CSV data: $e');
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,10 +171,12 @@ class ErrorsScreen extends StatelessWidget {
             Expanded(
               child: TabBarView(
                 children: [
-                  _buildErrorList(errors),
-                  showMLMessage
-                      ? _buildMLMessage()
-                      : _buildErrorList(predictions),
+                  hasCsvFiles
+                      ? _buildErrorList(errors)
+                      : _buildMLMessage(),
+                  hasCsvFiles
+                      ? _buildErrorList(predictions)
+                      : _buildMLMessage(),
                 ],
               ),
             ),
@@ -151,10 +240,26 @@ class ErrorsScreen extends StatelessWidget {
     );
   }
 
-  static Widget _buildMLMessage() {
+  Widget _buildMLMessage() {
+    if (isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+    
+    if (!hasCsvFiles) {
+      return const Center(
+        child: Text(
+          'Please scan first',
+          style: TextStyle(color: Colors.white54, fontSize: 16),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+    
     return const Center(
       child: Text(
-        'Run an ML Scan to see predictions.',
+        'No predictions available',
         style: TextStyle(color: Colors.white54, fontSize: 16),
         textAlign: TextAlign.center,
       ),

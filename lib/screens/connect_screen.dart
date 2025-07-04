@@ -12,10 +12,9 @@ class ConnectScreen extends StatefulWidget {
 
 class _ConnectScreenState extends State<ConnectScreen> {
   bool _connecting = false;
-  bool _connected = false;
-  String _dialogText = 'Connecting...';
 
   Future<bool> _requestBluetoothPermissions() async {
+    debugPrint('🔐 CONNECT: Requesting Bluetooth permissions...');
     final bluetoothConnect = await Permission.bluetoothConnect.request();
     final bluetoothScan = await Permission.bluetoothScan.request();
     final location =
@@ -23,136 +22,34 @@ class _ConnectScreenState extends State<ConnectScreen> {
             .request(); // Needed for BLE and Bluetooth discovery
 
     if (!mounted) return false;
-    if (bluetoothConnect.isGranted &&
+    
+    bool allGranted = bluetoothConnect.isGranted &&
         bluetoothScan.isGranted &&
-        location.isGranted) {
-      return true;
-    } else {
+        location.isGranted;
+        
+    debugPrint('🔐 CONNECT: Permissions granted: $allGranted');
+    
+    if (!allGranted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Bluetooth and Location permissions are required.'),
         ),
       );
-      return false;
     }
+    
+    return allGranted;
   }
 
   Future<void> _connectToOBD() async {
+    debugPrint('🔌 CONNECT: Starting OBD connection process');
     bool hasPermissions = await _requestBluetoothPermissions();
+    debugPrint('🔌 CONNECT: Permissions granted: $hasPermissions');
     if (!hasPermissions) return;
     if (!mounted) return;
-    setState(() {
-      _connecting = true;
-      _connected = false;
-      _dialogText = 'Connecting...';
-    });
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => _buildConnectingDialog(),
-    );
-    try {
-      // Start Bluetooth if not enabled
-      final btState = await FlutterBluetoothSerial.instance.state;
-      if (btState != BluetoothState.STATE_ON) {
-        await FlutterBluetoothSerial.instance.requestEnable();
-      }
-      // Discover devices
-      List<BluetoothDevice> devices =
-          await FlutterBluetoothSerial.instance.getBondedDevices();
-      if (!mounted) return;
-      // Try to find an OBD device (by name, e.g., contains 'OBD' or 'ELM')
-      BluetoothDevice? obdDevice;
-      try {
-        obdDevice = devices.firstWhere(
-          (d) =>
-              d.name != null &&
-              (d.name!.toUpperCase().contains('OBD') ||
-                  d.name!.toUpperCase().contains('ELM')),
-        );
-      } catch (_) {
-        obdDevice = null;
-      }
-      if (obdDevice != null) {
-        // Try to connect
-        bool connected = await ObdConnectionManager().connectToDevice(
-          obdDevice,
-        );
-        if (!mounted) return;
-        setState(() {
-          _dialogText = connected ? 'Connected!' : 'Connection failed.';
-          _connected = connected;
-        });
-        await Future.delayed(const Duration(seconds: 2));
-        if (!mounted) return;
-        Navigator.of(context).pop(); // Close dialog
-        if (connected) {
-          if (!mounted) return;
-          Navigator.of(context).pop(); // Go back to home
-        }
-        return;
-      } else {
-        if (!mounted) return;
-        setState(() {
-          _dialogText = 'No OBD-II device found.';
-        });
-        await Future.delayed(const Duration(seconds: 2));
-        if (!mounted) return;
-        Navigator.of(context).pop();
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _dialogText = 'Connection failed.';
-      });
-      await Future.delayed(const Duration(seconds: 2));
-      if (!mounted) return;
-      Navigator.of(context).pop();
-    } finally {
-      if (mounted) {
-        setState(() {
-          _connecting = false;
-        });
-      }
-    }
-  }
-
-  Widget _buildConnectingDialog() {
-    return AlertDialog(
-      backgroundColor: Colors.grey[900],
-      content: SizedBox(
-        height: 100,
-        child: Center(
-          child:
-              _connected
-                  ? Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.check_circle,
-                        color: Colors.green,
-                        size: 48,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        _dialogText,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ],
-                  )
-                  : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const CircularProgressIndicator(),
-                      const SizedBox(height: 12),
-                      Text(
-                        _dialogText,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ],
-                  ),
-        ),
-      ),
+      builder: (context) => const ConnectionDialog(),
     );
   }
 
@@ -280,6 +177,165 @@ class _ConnectScreenState extends State<ConnectScreen> {
               const SizedBox(height: 24),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class ConnectionDialog extends StatefulWidget {
+  const ConnectionDialog({super.key});
+
+  @override
+  State<ConnectionDialog> createState() => _ConnectionDialogState();
+}
+
+class _ConnectionDialogState extends State<ConnectionDialog> {
+  late Future<bool> _connectionFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    debugPrint('🔌 DIALOG: ConnectionDialog initialized');
+    _connectionFuture = _connect();
+  }
+
+  Future<bool> _connect() async {
+    debugPrint('🔌 DIALOG: Starting connection process');
+    
+    // Start Bluetooth if not enabled
+    final btState = await FlutterBluetoothSerial.instance.state;
+    debugPrint('🔌 DIALOG: Bluetooth state: $btState');
+    if (btState != BluetoothState.STATE_ON) {
+      debugPrint('🔌 DIALOG: Requesting Bluetooth enable...');
+      await FlutterBluetoothSerial.instance.requestEnable();
+    }
+    
+    // Discover devices
+    debugPrint('🔌 DIALOG: Getting bonded devices...');
+    List<BluetoothDevice> devices =
+        await FlutterBluetoothSerial.instance.getBondedDevices();
+    debugPrint('🔌 DIALOG: Found ${devices.length} bonded devices: ${devices.map((d) => d.name).toList()}');
+    
+    if (!mounted) return false;
+    
+    // Try to find an OBD device (by name, e.g., contains 'OBD' or 'ELM')
+    BluetoothDevice? obdDevice;
+    try {
+      obdDevice = devices.firstWhere(
+        (d) =>
+            d.name != null &&
+            (d.name!.toUpperCase().contains('OBD') ||
+                d.name!.toUpperCase().contains('ELM')),
+      );
+      debugPrint('🔌 DIALOG: Found OBD device: ${obdDevice.name}');
+    } catch (_) {
+      obdDevice = null;
+      debugPrint('🔌 DIALOG: No OBD device found in bonded devices');
+    }
+    
+    if (obdDevice != null) {
+      // Try to connect with timeout
+      try {
+        debugPrint('🔌 DIALOG: Attempting to connect to ${obdDevice.name}...');
+        bool connected = await ObdConnectionManager()
+            .connectToDevice(obdDevice)
+            .timeout(const Duration(seconds: 15));
+        debugPrint('🔌 DIALOG: Connection result: $connected');
+        debugPrint('🔌 DIALOG: ObdConnectionManager().isConnected: ${ObdConnectionManager().isConnected}');
+        return connected;
+      } catch (e) {
+        debugPrint('❌ DIALOG: Connection attempt failed: $e');
+        return false;
+      }
+    } else {
+      debugPrint('❌ DIALOG: No OBD-II device found');
+      return false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    debugPrint('🔌 DIALOG: Building connection dialog');
+    return AlertDialog(
+      backgroundColor: Colors.grey[900],
+      content: SizedBox(
+        width: 260, // or whatever width you want
+        child: FutureBuilder<bool>(
+          future: _connectionFuture,
+          builder: (context, snapshot) {
+            debugPrint('🔌 DIALOG: FutureBuilder state: ${snapshot.connectionState}, hasError: ${snapshot.hasError}, data: ${snapshot.data}');
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              debugPrint('🔌 DIALOG: Showing waiting state');
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Connecting...',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ],
+                ),
+              );
+            } else if (snapshot.hasError || !(snapshot.data ?? false)) {
+              debugPrint('🔌 DIALOG: Showing error state');
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error, color: Colors.red, size: 48),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Connection failed.',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                      ),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      child: const Text('Close'),
+                    ),
+                  ],
+                ),
+              );
+            } else {
+              debugPrint('🔌 DIALOG: Showing success state');
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.green, size: 48),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Connected!',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                      ),
+                      onPressed: () {
+                        Navigator.of(context).pop(); // Close dialog
+                        Navigator.of(context).pop(); // Go back to home
+                      },
+                      child: const Text('Awesome!'),
+                    ),
+                  ],
+                ),
+              );
+            }
+          },
         ),
       ),
     );
