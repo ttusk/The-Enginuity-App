@@ -163,6 +163,7 @@ class _ScanScreenState extends State<ScanScreen> {
 
   bool _realTimeScanning = false;
   Timer? _realTimeTimer;
+  Timer? _rpmTimer;
 
   void _startRealTimeScan() {
     if (!ObdConnectionManager().isConnected) {
@@ -174,21 +175,63 @@ class _ScanScreenState extends State<ScanScreen> {
     setState(() {
       _realTimeScanning = true;
     });
-    _realTimeTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
-      await _updateMetricsFromObd();
+    // Poll all metrics except RPM every 5 seconds
+    _realTimeTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+      await _updateMetricsFromObd(excludeRpm: true);
+    });
+    // Poll RPM every second
+    _rpmTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
+      await _updateRpmFromObd();
     });
   }
 
-  Future<void> _updateMetricsFromObd() async {
+  Future<void> _updateRpmFromObd() async {
+    final connection = ObdConnectionManager().connection;
+    if (connection == null || !connection.isConnected) {
+      debugPrint('⚠️ SCAN: No connection available for RPM update');
+      return;
+    }
+    try {
+      debugPrint('📤 SCAN: Sending PID: ENGINE_RPM (code: 010C)');
+      final response = await ObdConnectionManager().sendObdCommand('010C');
+      String responseStr = String.fromCharCodes(response);
+      debugPrint('📥 SCAN: Raw response for ENGINE_RPM: "$responseStr"');
+      if (!responseStr.trim().endsWith('>')) {
+        debugPrint('⏳ SCAN: Incomplete response, skipping update for ENGINE_RPM');
+        return;
+      }
+      List<String> lines = responseStr.split(RegExp(r'[\r\n]+'));
+      for (String line in lines) {
+        line = line.trim();
+        if (line.isEmpty ||
+            line.contains('NO DATA') ||
+            line.contains('STOPPED') ||
+            line.startsWith('7F') ||
+            line == '>') {
+          continue;
+        }
+        if (line.endsWith('>')) line = line.substring(0, line.length - 1);
+        if (line.startsWith('410C')) {
+          double value = _parseObdResponseFromLine('ENGINE_RPM', line, '0C');
+          debugPrint('✅ SCAN: ENGINE_RPM - Parsed: $value from line: "$line"');
+          setState(() {
+            _metrics['ENGINE_RPM'] = value;
+          });
+          break;
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ SCAN: Error reading PID ENGINE_RPM: $e');
+    }
+  }
+
+  Future<void> _updateMetricsFromObd({bool excludeRpm = false}) async {
     final connection = ObdConnectionManager().connection;
     if (connection == null || !connection.isConnected) {
       debugPrint('⚠️ SCAN: No connection available for metric update');
       return;
     }
-    
     debugPrint('🔄 SCAN: Starting metric update cycle...');
-    
-    // Only poll the top 10 metrics
     final Map<String, String> pidMap = {
       'ENGINE_RPM': '010C',
       'VEHICLE_SPEED': '010D',
@@ -201,165 +244,128 @@ class _ScanScreenState extends State<ScanScreen> {
       'LONG_TERM_FUEL_TRIM_BANK_1': '0107',
       'SHORT_TERM_FUEL_TRIM_BANK_1': '0106',
     };
-    
     for (final entry in pidMap.entries) {
+      if (excludeRpm && entry.key == 'ENGINE_RPM') continue;
       try {
         debugPrint('📤 SCAN: Sending PID: ${entry.key} (code: ${entry.value})');
         final response = await ObdConnectionManager().sendObdCommand(entry.value);
-        
         String responseStr = String.fromCharCodes(response);
         String responseHex = response.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
-        
         debugPrint('📥 SCAN: Raw response for ${entry.key}: "$responseStr"');
         debugPrint('📥 SCAN: Hex response for ${entry.key}: $responseHex');
-        
-        String dataStr = _extractObdDataForPid(response, entry.value);
-        final value = _parseObdResponse(entry.key, response);
-        
-        debugPrint('✅ SCAN: ${entry.key} - Extracted: "$dataStr", Parsed: $value');
-        
-        setState(() {
-          _metrics[entry.key] = value;
-        });
+        if (!responseStr.trim().endsWith('>')) {
+          debugPrint('⏳ SCAN: Incomplete response, skipping update for ${entry.key}');
+          continue;
+        }
+        List<String> lines = responseStr.split(RegExp(r'[\r\n]+'));
+        bool foundValid = false;
+        for (String line in lines) {
+          line = line.trim();
+          if (line.isEmpty ||
+              line.contains('NO DATA') ||
+              line.contains('STOPPED') ||
+              line.startsWith('7F') ||
+              line == '>') {
+            continue;
+          }
+          if (line.endsWith('>')) line = line.substring(0, line.length - 1);
+          String pid = entry.value.length == 4 ? entry.value.substring(2, 4).toUpperCase() : entry.value.toUpperCase();
+          if (line.startsWith('41$pid')) {
+            double value = _parseObdResponseFromLine(entry.key, line, pid);
+            debugPrint('✅ SCAN: ${entry.key} - Parsed: $value from line: "$line"');
+            setState(() {
+              _metrics[entry.key] = value;
+            });
+            foundValid = true;
+            break;
+          }
+        }
+        if (!foundValid) {
+          debugPrint('⚠️ SCAN: No valid data found for ${entry.key}, keeping previous value: ${_metrics[entry.key]}');
+        }
       } catch (e) {
         debugPrint('❌ SCAN: Error reading PID ${entry.key}: $e');
       }
+      await Future.delayed(const Duration(milliseconds: 300));
     }
-    
     debugPrint('✅ SCAN: Metric update cycle completed');
   }
 
-  String _extractObdDataForPid(List<int> response, String pidHex) {
-    String respStr = String.fromCharCodes(response).replaceAll(RegExp(r'[>\r\n\s]'), '');
-    
-    // Look for standard OBD response format: 41 XX YY ZZ (where XX is the PID, YY ZZ are data)
-    String pid = pidHex.length == 4 ? pidHex.substring(2, 4).toUpperCase() : pidHex.toUpperCase();
-    
-    // Simple regex to find 41 followed by the PID and data
-    RegExp obdResponse = RegExp(r'41' + pid + r'([A-Fa-f0-9]+)');
-    final match = obdResponse.firstMatch(respStr);
-    
-    if (match != null) {
-      String dataHex = match.group(1)!;
-      // Split into pairs of hex digits
-      List<String> bytes = [];
-      for (int i = 0; i < dataHex.length; i += 2) {
-        if (i + 2 <= dataHex.length) {
-          bytes.add(dataHex.substring(i, i + 2));
-        }
+  double _parseObdResponseFromLine(String metric, String line, String pid) {
+    // Remove header (e.g., 410C) and split into hex bytes
+    String dataHex = line.substring(4); // after 41XX
+    List<String> hexBytes = [];
+    for (int i = 0; i < dataHex.length; i += 2) {
+      if (i + 2 <= dataHex.length) {
+        hexBytes.add(dataHex.substring(i, i + 2));
       }
-      return bytes.join(' ');
     }
-    
-    return '';
-  }
-
-  double _parseObdResponse(String metric, List<int> response) {
-    final Map<String, String> pidMap = {
-      'ENGINE_RPM': '010C',
-      'VEHICLE_SPEED': '010D',
-      'COOLANT_TEMPERATURE': '0105',
-      'ENGINE_LOAD': '0104',
-      'THROTTLE': '0111',
-      'INTAKE_AIR_TEMP': '010F',
-      'FUEL_TANK': '012F',
-      'CONTROL_MODULE_VOLTAGE': '0142',
-      'LONG_TERM_FUEL_TRIM_BANK_1': '0107',
-      'SHORT_TERM_FUEL_TRIM_BANK_1': '0106',
-    };
-    
-    String pidHex = pidMap[metric] ?? '';
-    String dataStr = _extractObdDataForPid(response, pidHex);
-    debugPrint('OBD ASCII cleaned for $metric ($pidHex): $dataStr');
-    
-    // Check for invalid responses
-    if (dataStr.isEmpty || dataStr.toUpperCase().contains('NO DATA') || dataStr.toUpperCase().contains('STOPPED')) {
-      return 0.0;
-    }
-    
-    // Split into hex bytes
-    List<String> hexBytes = dataStr.split(' ').where((s) => s.isNotEmpty).toList();
     if (hexBytes.isEmpty) return 0.0;
-    
-    // Convert hex strings to integers
     List<int> data = hexBytes.map((b) => int.tryParse(b, radix: 16) ?? 0).toList();
-    
-    // Apply standard OBD-II formulas
     double value = 0.0;
     switch (metric) {
-      case 'ENGINE_RPM': // 010C: (A * 256 + B) / 4
+      case 'ENGINE_RPM':
         if (data.length >= 2) {
           value = ((data[0] * 256) + data[1]) / 4.0;
         }
         break;
-        
-      case 'VEHICLE_SPEED': // 010D: A (km/h)
+      case 'VEHICLE_SPEED':
         if (data.isNotEmpty) {
           value = data[0].toDouble();
         }
         break;
-        
-      case 'COOLANT_TEMPERATURE': // 0105: A - 40 (°C)
+      case 'COOLANT_TEMPERATURE':
         if (data.isNotEmpty) {
           value = (data[0] - 40).toDouble();
         }
         break;
-        
-      case 'ENGINE_LOAD': // 0104: (A * 100) / 255 (%)
+      case 'ENGINE_LOAD':
         if (data.isNotEmpty) {
           value = (data[0] * 100.0) / 255.0;
         }
         break;
-        
-      case 'THROTTLE': // 0111: (A * 100) / 255 (%)
+      case 'THROTTLE':
         if (data.isNotEmpty) {
           value = (data[0] * 100.0) / 255.0;
         }
         break;
-        
-      case 'INTAKE_AIR_TEMP': // 010F: A - 40 (°C)
+      case 'INTAKE_AIR_TEMP':
         if (data.isNotEmpty) {
           value = (data[0] - 40).toDouble();
         }
         break;
-        
-      case 'FUEL_TANK': // 012F: (A * 100) / 255 (%)
+      case 'FUEL_TANK':
         if (data.isNotEmpty) {
           value = (data[0] * 100.0) / 255.0;
         }
         break;
-        
-      case 'CONTROL_MODULE_VOLTAGE': // 0142: (A * 256 + B) / 1000 (V)
+      case 'CONTROL_MODULE_VOLTAGE':
         if (data.length >= 2) {
           value = ((data[0] * 256) + data[1]) / 1000.0;
         }
         break;
-        
-      case 'LONG_TERM_FUEL_TRIM_BANK_1': // 0107: ((A - 128) * 100) / 128 (%)
+      case 'LONG_TERM_FUEL_TRIM_BANK_1':
         if (data.isNotEmpty) {
           value = ((data[0] - 128) * 100.0) / 128.0;
         }
         break;
-        
-      case 'SHORT_TERM_FUEL_TRIM_BANK_1': // 0106: ((A - 128) * 100) / 128 (%)
+      case 'SHORT_TERM_FUEL_TRIM_BANK_1':
         if (data.isNotEmpty) {
           value = ((data[0] - 128) * 100.0) / 128.0;
         }
         break;
-        
       default:
         value = 0.0;
     }
-    
     return value;
   }
 
   void _stopRealTimeScan() async {
     _realTimeTimer?.cancel();
+    _rpmTimer?.cancel();
     setState(() {
       _realTimeScanning = false;
     });
-
     final scanTime = DateTime.now();
     if (widget.carData != null && widget.carData!['id'] != null) {
       await _updateLastScanInFirestore(
@@ -372,6 +378,7 @@ class _ScanScreenState extends State<ScanScreen> {
   @override
   void dispose() {
     _realTimeTimer?.cancel();
+    _rpmTimer?.cancel();
     super.dispose();
   }
 

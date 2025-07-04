@@ -260,70 +260,79 @@ class _ConnectionDialogState extends State<ConnectionDialog> {
     return AlertDialog(
       backgroundColor: Colors.grey[900],
       content: SizedBox(
-        height: 140,
+        width: 260, // or whatever width you want
         child: FutureBuilder<bool>(
           future: _connectionFuture,
           builder: (context, snapshot) {
             debugPrint('🔌 DIALOG: FutureBuilder state: ${snapshot.connectionState}, hasError: ${snapshot.hasError}, data: ${snapshot.data}');
             if (snapshot.connectionState == ConnectionState.waiting) {
               debugPrint('🔌 DIALOG: Showing waiting state');
-              return Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Connecting...',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ],
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Connecting...',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ],
+                ),
               );
             } else if (snapshot.hasError || !(snapshot.data ?? false)) {
               debugPrint('🔌 DIALOG: Showing error state');
-              return Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error, color: Colors.red, size: 48),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Connection failed.',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error, color: Colors.red, size: 48),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Connection failed.',
+                      style: TextStyle(color: Colors.white),
                     ),
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                    child: const Text('Close'),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                      ),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      child: const Text('Close'),
+                    ),
+                  ],
+                ),
               );
             } else {
               debugPrint('🔌 DIALOG: Showing success state');
-              return Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.green, size: 48),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Connected!',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.green, size: 48),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Connected!',
+                      style: TextStyle(color: Colors.white),
                     ),
-                    onPressed: () {
-                      Navigator.of(context).pop(); // Close dialog
-                      Navigator.of(context).pop(); // Go back to home
-                    },
-                    child: const Text('Awesome!'),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                      ),
+                      onPressed: () {
+                        Navigator.of(context).pop(); // Close dialog
+                        Navigator.of(context).pop(); // Go back to home
+                      },
+                      child: const Text('Awesome!'),
+                    ),
+                  ],
+                ),
               );
             }
           },
