@@ -5,10 +5,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+
 import 'package:path/path.dart' as p;
-import 'errors_screen.dart';
+
 import '../obd_connection_manager.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -93,76 +92,18 @@ class _ScanScreenState extends State<ScanScreen> {
     }
   }
 
-  void _showScanTypeDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Choose Scan Type'),
-          content: const Text('Select the type of scan you want to perform.'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _startRealTimeScan();
-              },
-              child: const Text('Real-Time Scan'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _showMLScanSizeDialog();
-              },
-              child: const Text('ML Scan'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
-  void _showMLScanSizeDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        int selectedSize = 20;
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('ML Scan Size'),
-              content: DropdownButton<int>(
-                value: selectedSize,
-                items:
-                    [20, 40, 60, 80, 100]
-                        .map(
-                          (v) => DropdownMenuItem(
-                            value: v,
-                            child: Text('$v readings'),
-                          ),
-                        )
-                        .toList(),
-                onChanged: (v) => setState(() => selectedSize = v ?? 20),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    _performMLScan(selectedSize);
-                  },
-                  child: const Text('Start ML Scan'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
 
   bool _realTimeScanning = false;
   Timer? _realTimeTimer;
   Timer? _rpmTimer;
+  Timer? _csvTimer;
   bool _isCommandInProgress = false; // Prevent overlapping commands
+  
+  // Buffer for collecting readings
+  final Map<String, List<double>> _readingBuffer = {};
+  int _readingsCollected = 0;
+  static const int _readingsPerRow = 9; // One reading for each metric
 
   void _startRealTimeScan() {
     if (!ObdConnectionManager().isConnected) {
@@ -173,6 +114,12 @@ class _ScanScreenState extends State<ScanScreen> {
     }
     setState(() {
       _realTimeScanning = true;
+      _readingsCollected = 0;
+      _readingBuffer.clear();
+      // Initialize buffer for each metric
+      for (String metric in _topMetrics) {
+        _readingBuffer[metric] = [];
+      }
     });
     // Poll all metrics except RPM every 5 seconds
     _realTimeTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
@@ -181,6 +128,10 @@ class _ScanScreenState extends State<ScanScreen> {
     // Poll RPM every second
     _rpmTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
       await _updateRpmFromObd();
+    });
+    // Generate CSV every 10 minutes
+    _csvTimer = Timer.periodic(const Duration(minutes: 10), (_) async {
+      await _generateCsvFile();
     });
   }
 
@@ -238,6 +189,19 @@ class _ScanScreenState extends State<ScanScreen> {
           setState(() {
             _metrics['ENGINE_RPM'] = value;
           });
+          
+          // Add to buffer for CSV generation
+          if (_realTimeScanning && _readingBuffer.containsKey('ENGINE_RPM')) {
+            _readingBuffer['ENGINE_RPM']!.add(value);
+            _readingsCollected++;
+            
+            // Check if we have collected all 9 readings
+            if (_readingsCollected >= _readingsPerRow) {
+              await _addRowToCsvBuffer();
+              _readingsCollected = 0;
+            }
+          }
+          
           return; // Exit after finding valid RPM data
         }
       }
@@ -316,6 +280,18 @@ class _ScanScreenState extends State<ScanScreen> {
           setState(() {
             _metrics[entry.key] = parsedValue;
           });
+          
+          // Add to buffer for CSV generation
+          if (_realTimeScanning && _readingBuffer.containsKey(entry.key)) {
+            _readingBuffer[entry.key]!.add(parsedValue);
+            _readingsCollected++;
+            
+            // Check if we have collected all 9 readings
+            if (_readingsCollected >= _readingsPerRow) {
+              await _addRowToCsvBuffer();
+              _readingsCollected = 0;
+            }
+          }
         } else {
           debugPrint('⚠️ SCAN: No valid data found for ${entry.key}, keeping previous value: ${_metrics[entry.key]}');
         }
@@ -438,7 +414,12 @@ class _ScanScreenState extends State<ScanScreen> {
   void _stopRealTimeScan() async {
     _realTimeTimer?.cancel();
     _rpmTimer?.cancel();
+    _csvTimer?.cancel();
     _isCommandInProgress = false; // Reset command flag
+    
+    // Generate final CSV before stopping
+    await _generateCsvFile();
+    
     setState(() {
       _realTimeScanning = false;
     });
@@ -460,10 +441,55 @@ class _ScanScreenState extends State<ScanScreen> {
     return true;
   }
 
+  // CSV buffer for collecting data
+  final List<List<String>> _csvBuffer = [];
+  
+  Future<void> _addRowToCsvBuffer() async {
+    List<String> row = [];
+    for (String metric in _topMetrics) {
+      if (_readingBuffer[metric]!.isNotEmpty) {
+        row.add(_readingBuffer[metric]!.last.toString());
+      } else {
+        row.add('0.0'); // Default value if no reading
+      }
+    }
+    _csvBuffer.add(row);
+    debugPrint('📊 SCAN: Added row to CSV buffer: $row');
+  }
+  
+  Future<void> _generateCsvFile() async {
+    if (_csvBuffer.isEmpty) {
+      debugPrint('⚠️ SCAN: No data to write to CSV');
+      return;
+    }
+    
+    final dir = await getApplicationDocumentsDirectory();
+    final fileName = "${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}_monitoring.csv";
+    final filePath = p.join(dir.path, fileName);
+    final file = File(filePath);
+    
+    final csvContent = StringBuffer();
+    csvContent.writeln(_topMetrics.join(','));
+    
+    for (final row in _csvBuffer) {
+      csvContent.writeln(row.join(','));
+    }
+    
+    await file.writeAsString(csvContent.toString());
+    debugPrint('✅ SCAN: Generated CSV file: $filePath with ${_csvBuffer.length} rows');
+    
+    // Clear buffer after writing
+    _csvBuffer.clear();
+    for (String metric in _topMetrics) {
+      _readingBuffer[metric]!.clear();
+    }
+  }
+
   @override
   void dispose() {
     _realTimeTimer?.cancel();
     _rpmTimer?.cancel();
+    _csvTimer?.cancel();
     _isCommandInProgress = false;
     super.dispose();
   }
@@ -601,7 +627,7 @@ class _ScanScreenState extends State<ScanScreen> {
                       ),
                       onPressed: _stopRealTimeScan,
                       icon: const Icon(Icons.stop),
-                      label: const Text('Stop Scan'),
+                                              label: const Text('Stop Monitoring'),
                     )
                     : ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
@@ -610,9 +636,9 @@ class _ScanScreenState extends State<ScanScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      onPressed: _showScanTypeDialog,
-                      icon: const Icon(Icons.search),
-                      label: const Text('Scan Now'),
+                      onPressed: _startRealTimeScan,
+                      icon: const Icon(Icons.play_arrow),
+                      label: const Text('Start Monitoring'),
                     ),
           ),
         ),
@@ -718,7 +744,7 @@ class _ScanScreenState extends State<ScanScreen> {
         dir
             .listSync()
             .whereType<File>()
-            .where((f) => f.path.endsWith('_scan.csv'))
+            .where((f) => f.path.endsWith('_monitoring.csv'))
             .toList()
           ..sort(
             (a, b) => b.statSync().modified.compareTo(a.statSync().modified),
@@ -796,104 +822,7 @@ class _ScanScreenState extends State<ScanScreen> {
     );
   }
 
-  Future<void> _performMLScan(int scanSize) async {
-    if (!ObdConnectionManager().isConnected) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No OBD-II device connected.')),
-      );
-      return;
-    }
-    final dir = await getApplicationDocumentsDirectory();
-    final fileName = "${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}_ml_scan.csv";
-    final filePath = p.join(dir.path, fileName);
-    final file = File(filePath);
-    final headers = _topMetrics;
-    final csvContent = StringBuffer();
-    csvContent.writeln(headers.join(','));
-    List<List<String>> rows = [];
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return _MLScanProgressDialog(total: scanSize);
-      },
-    );
-    for (int i = 0; i < scanSize; i++) {
-      await Future.delayed(const Duration(seconds: 1));
-      if (!mounted) return;
-      await _updateMetricsFromObd();
-      if (!mounted) return;
-      rows.add(_topMetrics.map((k) => _metrics[k]!.toString()).toList());
-      _MLScanProgressDialog.of(context)?.updateProgress(i + 1);
-    }
-    for (final row in rows) {
-      csvContent.writeln(row.join(','));
-    }
-    await file.writeAsString(csvContent.toString());
-    if (!mounted) return;
-    Navigator.of(context).pop();
-    // Send to /check-current-errors and /predict-faults
-    List<dynamic> errors = [];
-    List<dynamic> predictions = [];
-    try {
-      // /check-current-errors
-      final request1 = http.MultipartRequest(
-        'POST',
-        Uri.parse('http://localhost:5000/check-current-errors'),
-      );
-      request1.files.add(await http.MultipartFile.fromPath('file', filePath));
-      final streamedResponse1 = await request1.send();
-      if (!mounted) return;
-      final response1 = await http.Response.fromStream(streamedResponse1);
-      if (!mounted) return;
-      if (response1.statusCode == 200) {
-        final jsonResponse = json.decode(response1.body);
-        errors = jsonResponse['errors'] ?? [];
-      }
-      // /predict-faults
-      final request2 = http.MultipartRequest(
-        'POST',
-        Uri.parse('http://localhost:5000/predict-faults'),
-      );
-      request2.files.add(await http.MultipartFile.fromPath('file', filePath));
-      final streamedResponse2 = await request2.send();
-      if (!mounted) return;
-      final response2 = await http.Response.fromStream(streamedResponse2);
-      if (!mounted) return;
-      if (response2.statusCode == 200) {
-        final jsonResponse = json.decode(response2.body);
-        predictions = jsonResponse['predictions'] ?? [];
-      }
-      final scanTime = DateTime.now();
 
-      // Firestore update
-      if (widget.carData != null && widget.carData!['id'] != null) {
-        await _updateLastScanInFirestore(
-          carId: widget.carData!['id'],
-          scanTime: scanTime,
-          errors: errors,
-          predictions: predictions,
-        );
-      }
-
-      // Navigate to results screen
-      if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => ErrorsScreen(
-            errors: errors,
-            predictions: predictions,
-            showMLMessage: false,
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to connect to server: $e')),
-      );
-    }
-  }
 
   // Helper to format metric values with units
   String _formatMetric(String key, double value) {
@@ -944,38 +873,4 @@ class _ScanRecord {
   _ScanRecord(this.date, this.path);
 }
 
-// ML Scan Progress Dialog
-class _MLScanProgressDialog extends StatefulWidget {
-  final int total;
-  const _MLScanProgressDialog({this.total = 20});
-  static _MLScanProgressDialogState? of(BuildContext context) {
-    return context.findAncestorStateOfType<_MLScanProgressDialogState>();
-  }
 
-  @override
-  _MLScanProgressDialogState createState() => _MLScanProgressDialogState();
-}
-
-class _MLScanProgressDialogState extends State<_MLScanProgressDialog> {
-  int progress = 0;
-  void updateProgress(int value) {
-    setState(() {
-      progress = value;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('ML Scan in Progress'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: 16),
-          Text('Collecting data... $progress/${widget.total}'),
-        ],
-      ),
-    );
-  }
-}

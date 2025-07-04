@@ -6,10 +6,7 @@ import 'add_car_screen.dart';
 import 'connect_screen.dart';
 import 'scan_screen.dart';
 import 'errors_screen.dart';
-import 'dart:io';
-import 'dart:convert';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -46,28 +43,13 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (index == 1) {
-      // Load last_errors.json from documents directory
-      List<dynamic> errors = [];
-      List<dynamic> predictions = [];
-      try {
-        final dir = await getApplicationDocumentsDirectory();
-        if (!mounted) return;
-        final file = File(p.join(dir.path, 'last_errors.json'));
-        if (await file.exists()) {
-          if (!mounted) return;
-          final content = await file.readAsString();
-          if (!mounted) return;
-          final jsonData = json.decode(content);
-          errors = jsonData['errors'] ?? [];
-          predictions = jsonData['predictions'] ?? [];
-        }
-      } catch (_) {}
+      // Navigate to errors screen
       if (!mounted) return;
       await Navigator.push(
         context,
         MaterialPageRoute(
           builder:
-              (_) => ErrorsScreen(errors: errors, predictions: predictions),
+              (_) => const ErrorsScreen(),
         ),
       );
       if (!mounted) return;

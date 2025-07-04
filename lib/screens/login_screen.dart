@@ -41,7 +41,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (doc.exists) {
         final fullName = doc.data()!['fullName'];
-        print("Welcome back, $fullName");
+        debugPrint("Welcome back, $fullName");
       }
 
       Navigator.pushReplacementNamed(context, '/home');
