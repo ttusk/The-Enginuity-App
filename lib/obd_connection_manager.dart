@@ -102,11 +102,8 @@ class ObdConnectionManager {
   }
 
   void _processCompleteResponse(String response) {
-    // Clean up the response
-    String cleanResponse = response
-        .replaceAll(RegExp(r'[\r\n]'), '')
-        .replaceAll('>', '')
-        .trim();
+    // Clean up the response but preserve the '>' character and line structure
+    String cleanResponse = response.trim();
     
     debugPrint('🧹 OBD: Cleaned response: "$cleanResponse"');
     

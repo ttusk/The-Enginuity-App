@@ -56,13 +56,12 @@ class _ScanScreenState extends State<ScanScreen> {
     'ENGINE_LOAD': 0,
     'THROTTLE': 0,
     'INTAKE_AIR_TEMP': 0,
-    'FUEL_TANK': 0,
     'CONTROL_MODULE_VOLTAGE': 0,
     'LONG_TERM_FUEL_TRIM_BANK_1': 0,
     'SHORT_TERM_FUEL_TRIM_BANK_1': 0,
   };
 
-  // Top 10 most common/meaningful OBD-II metrics
+  // Top 9 most common/meaningful OBD-II metrics
   static const List<String> _topMetrics = [
     'ENGINE_RPM',
     'VEHICLE_SPEED',
@@ -70,7 +69,6 @@ class _ScanScreenState extends State<ScanScreen> {
     'ENGINE_LOAD',
     'THROTTLE',
     'INTAKE_AIR_TEMP',
-    'FUEL_TANK',
     'CONTROL_MODULE_VOLTAGE',
     'LONG_TERM_FUEL_TRIM_BANK_1',
     'SHORT_TERM_FUEL_TRIM_BANK_1',
@@ -164,6 +162,7 @@ class _ScanScreenState extends State<ScanScreen> {
   bool _realTimeScanning = false;
   Timer? _realTimeTimer;
   Timer? _rpmTimer;
+  bool _isCommandInProgress = false; // Prevent overlapping commands
 
   void _startRealTimeScan() {
     if (!ObdConnectionManager().isConnected) {
@@ -186,20 +185,42 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   Future<void> _updateRpmFromObd() async {
-    final connection = ObdConnectionManager().connection;
-    if (connection == null || !connection.isConnected) {
-      debugPrint('⚠️ SCAN: No connection available for RPM update');
+    // Check if another command is in progress
+    if (_isCommandInProgress) {
+      debugPrint('⏳ SCAN: RPM update skipped - another command in progress');
       return;
     }
+    
+    // Check connection health
+    if (!_checkConnectionHealth()) {
+      debugPrint('⚠️ SCAN: RPM update skipped - connection unhealthy');
+      return;
+    }
+    
+    _isCommandInProgress = true;
+    
     try {
       debugPrint('📤 SCAN: Sending PID: ENGINE_RPM (code: 010C)');
-      final response = await ObdConnectionManager().sendObdCommand('010C');
+      
+      // Clear any pending responses before sending new command
+      await Future.delayed(const Duration(milliseconds: 50)); // Shorter delay for RPM
+      
+      // Add timeout to prevent hanging
+      final response = await ObdConnectionManager().sendObdCommand('010C')
+          .timeout(const Duration(seconds: 2), onTimeout: () { // Shorter timeout for RPM
+        debugPrint('⏰ SCAN: RPM command timeout');
+        throw TimeoutException('RPM command timeout');
+      });
+      
       String responseStr = String.fromCharCodes(response);
-      debugPrint('📥 SCAN: Raw response for ENGINE_RPM: "$responseStr"');
+      
+      debugPrint('📥 SCAN: Raw RPM response: "$responseStr"');
+      
       if (!responseStr.trim().endsWith('>')) {
-        debugPrint('⏳ SCAN: Incomplete response, skipping update for ENGINE_RPM');
+        debugPrint('⏳ SCAN: Incomplete RPM response, skipping update');
         return;
       }
+      
       List<String> lines = responseStr.split(RegExp(r'[\r\n]+'));
       for (String line in lines) {
         line = line.trim();
@@ -217,78 +238,137 @@ class _ScanScreenState extends State<ScanScreen> {
           setState(() {
             _metrics['ENGINE_RPM'] = value;
           });
-          break;
+          return; // Exit after finding valid RPM data
         }
       }
+      debugPrint('⚠️ SCAN: No valid RPM data found in response: "$responseStr"');
     } catch (e) {
       debugPrint('❌ SCAN: Error reading PID ENGINE_RPM: $e');
+    } finally {
+      _isCommandInProgress = false;
     }
   }
 
   Future<void> _updateMetricsFromObd({bool excludeRpm = false}) async {
-    final connection = ObdConnectionManager().connection;
-    if (connection == null || !connection.isConnected) {
-      debugPrint('⚠️ SCAN: No connection available for metric update');
+    // Check connection health
+    if (!_checkConnectionHealth()) {
+      debugPrint('⚠️ SCAN: Metric update cycle skipped - connection unhealthy');
       return;
     }
+    
     debugPrint('🔄 SCAN: Starting metric update cycle...');
+    
     final Map<String, String> pidMap = {
-      'ENGINE_RPM': '010C',
       'VEHICLE_SPEED': '010D',
       'COOLANT_TEMPERATURE': '0105',
       'ENGINE_LOAD': '0104',
       'THROTTLE': '0111',
       'INTAKE_AIR_TEMP': '010F',
-      'FUEL_TANK': '012F',
       'CONTROL_MODULE_VOLTAGE': '0142',
       'LONG_TERM_FUEL_TRIM_BANK_1': '0107',
       'SHORT_TERM_FUEL_TRIM_BANK_1': '0106',
     };
+    
     for (final entry in pidMap.entries) {
-      if (excludeRpm && entry.key == 'ENGINE_RPM') continue;
+      // Check connection health before each command
+      if (!_checkConnectionHealth()) {
+        debugPrint('⚠️ SCAN: Stopping metric cycle - connection lost');
+        break;
+      }
+      
+      // Check if another command is in progress (allow RPM to interrupt)
+      if (_isCommandInProgress) {
+        debugPrint('⏳ SCAN: Skipping ${entry.key} - another command in progress');
+        continue;
+      }
+      
+      _isCommandInProgress = true;
+      
       try {
         debugPrint('📤 SCAN: Sending PID: ${entry.key} (code: ${entry.value})');
-        final response = await ObdConnectionManager().sendObdCommand(entry.value);
+        
+        // Clear any pending responses before sending new command
+        await Future.delayed(const Duration(milliseconds: 150)); // Shorter delay
+        
+        // Add timeout to prevent hanging
+        final response = await ObdConnectionManager().sendObdCommand(entry.value)
+            .timeout(const Duration(seconds: 2), onTimeout: () { // Shorter timeout
+          debugPrint('⏰ SCAN: ${entry.key} command timeout');
+          throw TimeoutException('${entry.key} command timeout');
+        });
+        
         String responseStr = String.fromCharCodes(response);
         String responseHex = response.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
+        
         debugPrint('📥 SCAN: Raw response for ${entry.key}: "$responseStr"');
         debugPrint('📥 SCAN: Hex response for ${entry.key}: $responseHex');
+        
         if (!responseStr.trim().endsWith('>')) {
           debugPrint('⏳ SCAN: Incomplete response, skipping update for ${entry.key}');
           continue;
         }
-        List<String> lines = responseStr.split(RegExp(r'[\r\n]+'));
-        bool foundValid = false;
-        for (String line in lines) {
-          line = line.trim();
-          if (line.isEmpty ||
-              line.contains('NO DATA') ||
-              line.contains('STOPPED') ||
-              line.startsWith('7F') ||
-              line == '>') {
-            continue;
-          }
-          if (line.endsWith('>')) line = line.substring(0, line.length - 1);
-          String pid = entry.value.length == 4 ? entry.value.substring(2, 4).toUpperCase() : entry.value.toUpperCase();
-          if (line.startsWith('41$pid')) {
-            double value = _parseObdResponseFromLine(entry.key, line, pid);
-            debugPrint('✅ SCAN: ${entry.key} - Parsed: $value from line: "$line"');
-            setState(() {
-              _metrics[entry.key] = value;
-            });
-            foundValid = true;
-            break;
-          }
-        }
-        if (!foundValid) {
+        
+        // Parse the response
+        double? parsedValue = _parseObdResponse(entry.key, responseStr, entry.value);
+        
+        if (parsedValue != null) {
+          debugPrint('✅ SCAN: ${entry.key} - Parsed: $parsedValue');
+          setState(() {
+            _metrics[entry.key] = parsedValue;
+          });
+        } else {
           debugPrint('⚠️ SCAN: No valid data found for ${entry.key}, keeping previous value: ${_metrics[entry.key]}');
         }
+        
       } catch (e) {
         debugPrint('❌ SCAN: Error reading PID ${entry.key}: $e');
+      } finally {
+        _isCommandInProgress = false;
       }
-      await Future.delayed(const Duration(milliseconds: 300));
+      
+      // Shorter delay between requests
+      await Future.delayed(const Duration(milliseconds: 200));
     }
+    
     debugPrint('✅ SCAN: Metric update cycle completed');
+  }
+
+  double? _parseObdResponse(String metric, String responseStr, String pidCode) {
+    List<String> lines = responseStr.split(RegExp(r'[\r\n]+'));
+    String expectedHeader = '41${pidCode.substring(2, 4).toUpperCase()}';
+    
+    debugPrint('🔍 SCAN: Looking for header "$expectedHeader" in response for $metric');
+    
+    for (String line in lines) {
+      line = line.trim();
+      
+      // Skip error responses and empty lines
+      if (line.isEmpty ||
+          line.contains('NO DATA') ||
+          line.contains('STOPPED') ||
+          line.startsWith('7F') ||
+          line == '>') {
+        continue;
+      }
+      
+      // Remove trailing '>' if present
+      if (line.endsWith('>')) {
+        line = line.substring(0, line.length - 1);
+      }
+      
+      debugPrint('🔍 SCAN: Checking line: "$line" for header "$expectedHeader"');
+      
+      // Check if this line contains the expected response for this PID
+      if (line.startsWith(expectedHeader)) {
+        String pid = pidCode.substring(2, 4).toUpperCase();
+        double value = _parseObdResponseFromLine(metric, line, pid);
+        debugPrint('✅ SCAN: Found valid response for $metric: "$line" -> $value');
+        return value;
+      }
+    }
+    
+    debugPrint('❌ SCAN: No valid response found for $metric with header $expectedHeader');
+    return null; // No valid response found
   }
 
   double _parseObdResponseFromLine(String metric, String line, String pid) {
@@ -334,11 +414,6 @@ class _ScanScreenState extends State<ScanScreen> {
           value = (data[0] - 40).toDouble();
         }
         break;
-      case 'FUEL_TANK':
-        if (data.isNotEmpty) {
-          value = (data[0] * 100.0) / 255.0;
-        }
-        break;
       case 'CONTROL_MODULE_VOLTAGE':
         if (data.length >= 2) {
           value = ((data[0] * 256) + data[1]) / 1000.0;
@@ -363,6 +438,7 @@ class _ScanScreenState extends State<ScanScreen> {
   void _stopRealTimeScan() async {
     _realTimeTimer?.cancel();
     _rpmTimer?.cancel();
+    _isCommandInProgress = false; // Reset command flag
     setState(() {
       _realTimeScanning = false;
     });
@@ -375,10 +451,20 @@ class _ScanScreenState extends State<ScanScreen> {
     }
   }
 
+  bool _checkConnectionHealth() {
+    final connection = ObdConnectionManager().connection;
+    if (connection == null || !connection.isConnected) {
+      debugPrint('⚠️ SCAN: Connection health check failed - not connected');
+      return false;
+    }
+    return true;
+  }
+
   @override
   void dispose() {
     _realTimeTimer?.cancel();
     _rpmTimer?.cancel();
+    _isCommandInProgress = false;
     super.dispose();
   }
 
@@ -824,8 +910,6 @@ class _ScanScreenState extends State<ScanScreen> {
         return '${value.toStringAsFixed(1)} %';
       case 'INTAKE_AIR_TEMP':
         return '${value.toStringAsFixed(1)} °C';
-      case 'FUEL_TANK':
-        return '${value.toStringAsFixed(0)} %';
       case 'CONTROL_MODULE_VOLTAGE':
         return '${value.toStringAsFixed(2)} V';
       case 'LONG_TERM_FUEL_TRIM_BANK_1':
@@ -846,7 +930,6 @@ class _ScanScreenState extends State<ScanScreen> {
       case 'ENGINE_LOAD': return 'Engine Load';
       case 'THROTTLE': return 'Throttle Position';
       case 'INTAKE_AIR_TEMP': return 'Intake Air Temp';
-      case 'FUEL_TANK': return 'Fuel Tank Level';
       case 'CONTROL_MODULE_VOLTAGE': return 'Module Voltage';
       case 'LONG_TERM_FUEL_TRIM_BANK_1': return 'Long Term Fuel Trim';
       case 'SHORT_TERM_FUEL_TRIM_BANK_1': return 'Short Term Fuel Trim';
