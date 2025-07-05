@@ -1,6 +1,6 @@
 {
-    "name": "enginuity_the_app",
-    "short_name": "enginuity_the_app",
+      "name": "engineuity",
+  "short_name": "engineuity",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

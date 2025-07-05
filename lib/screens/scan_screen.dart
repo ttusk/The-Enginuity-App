@@ -517,15 +517,15 @@ class _ScanScreenState extends State<ScanScreen> {
         throw Exception('Storage permissions not granted');
       }
 
-      final enginuityDir = Directory('/storage/emulated/0/Enginuity');
-      if (!await enginuityDir.exists()) {
-        await enginuityDir.create(recursive: true);
-        debugPrint('📁 Created Enginuity folder for CSV storage');
+      final engineuityDir = Directory('/storage/emulated/0/Engineuity');
+      if (!await engineuityDir.exists()) {
+        await engineuityDir.create(recursive: true);
+        debugPrint('📁 Created Engineuity folder for CSV storage');
       }
 
       final fileName =
           "${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}_monitoring.csv";
-      final filePath = p.join(enginuityDir.path, fileName);
+      final filePath = p.join(engineuityDir.path, fileName);
       final file = File(filePath);
 
       final csvContent = StringBuffer();
@@ -843,16 +843,16 @@ class _ScanScreenState extends State<ScanScreen> {
   Future<List<_ScanRecord>> _getScanHistory() async {
     List<File> allCsvs = [];
 
-    // Try to read from public Enginuity directory first
+    // Try to read from public Engineuity directory first
     try {
       final storageStatus = await Permission.storage.status;
       final manageStorageStatus = await Permission.manageExternalStorage.status;
 
       if (manageStorageStatus.isGranted || storageStatus.isGranted) {
-        final enginuityDir = Directory('/storage/emulated/0/Enginuity');
-        if (await enginuityDir.exists()) {
+        final engineuityDir = Directory('/storage/emulated/0/Engineuity');
+        if (await engineuityDir.exists()) {
           allCsvs =
-              enginuityDir
+              engineuityDir
                   .listSync()
                   .whereType<File>()
                   .where((f) => f.path.endsWith('_monitoring.csv'))

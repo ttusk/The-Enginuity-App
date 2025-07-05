@@ -33,7 +33,7 @@ class _ErrorsScreenState extends State<ErrorsScreen> {
 
   Future<void> _loadLatestCsvData() async {
     try {
-      // Try to read from public Enginuity directory first
+      // Try to read from public Engineuity directory first
       List<File> allCsvs = [];
 
       try {
@@ -45,10 +45,10 @@ class _ErrorsScreenState extends State<ErrorsScreen> {
         // On Android 11+ (API 30+), only MANAGE_EXTERNAL_STORAGE is needed
         // On older versions, STORAGE permission is needed
         if (manageStorageStatus.isGranted || storageStatus.isGranted) {
-          final enginuityDir = Directory('/storage/emulated/0/Enginuity');
-          if (await enginuityDir.exists()) {
+          final engineuityDir = Directory('/storage/emulated/0/Engineuity');
+          if (await engineuityDir.exists()) {
             allCsvs =
-                enginuityDir
+                engineuityDir
                     .listSync()
                     .whereType<File>()
                     .where((f) => f.path.endsWith('_monitoring.csv'))

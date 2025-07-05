@@ -21,7 +21,7 @@ class StartScreen extends StatelessWidget {
           children: [
             const SizedBox(height: 100),
             const Text(
-              'Enginuity',
+              'Engineuity',
               style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 100),

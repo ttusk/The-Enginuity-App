@@ -1,9 +1,9 @@
-import 'package:enginuity_the_app/screens/home.dart';
-import 'package:enginuity_the_app/screens/login_screen.dart';
-import 'package:enginuity_the_app/screens/signup_screen.dart';
-import 'package:enginuity_the_app/screens/splash_screen.dart';
-import 'package:enginuity_the_app/screens/start_screen.dart';
-import 'package:enginuity_the_app/notification_service.dart';
+import 'package:engineuity/screens/home.dart';
+import 'package:engineuity/screens/login_screen.dart';
+import 'package:engineuity/screens/signup_screen.dart';
+import 'package:engineuity/screens/splash_screen.dart';
+import 'package:engineuity/screens/start_screen.dart';
+import 'package:engineuity/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'dart:io';
@@ -14,13 +14,13 @@ void main() async {
   await Firebase.initializeApp();
   await NotificationService.init();
 
-  // Create Enginuity folder for CSV storage
-  await _createEnginuityFolder();
+  // Create Engineuity folder for CSV storage
+  await _createEngineuityFolder();
 
   runApp(const MyApp());
 }
 
-Future<void> _createEnginuityFolder() async {
+Future<void> _createEngineuityFolder() async {
   try {
     // Request storage permissions first
     final storageStatus = await Permission.storage.request();
@@ -43,15 +43,15 @@ Future<void> _createEnginuityFolder() async {
       return;
     }
 
-    final enginuityDir = Directory('/storage/emulated/0/Enginuity');
-    if (!await enginuityDir.exists()) {
-      await enginuityDir.create(recursive: true);
-      debugPrint('📁 Created Enginuity folder: ${enginuityDir.path}');
+    final engineuityDir = Directory('/storage/emulated/0/Engineuity');
+    if (!await engineuityDir.exists()) {
+      await engineuityDir.create(recursive: true);
+      debugPrint('📁 Created Engineuity folder: ${engineuityDir.path}');
     } else {
-      debugPrint('📁 Enginuity folder already exists: ${enginuityDir.path}');
+      debugPrint('📁 Engineuity folder already exists: ${engineuityDir.path}');
     }
   } catch (e) {
-    debugPrint('⚠️ Failed to create Enginuity folder: $e');
+    debugPrint('⚠️ Failed to create Engineuity folder: $e');
   }
 }
 
@@ -62,7 +62,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext c) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Enginuity',
+      title: 'Engineuity',
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: const Color(0xFF0A1F26),
         appBarTheme: const AppBarTheme(

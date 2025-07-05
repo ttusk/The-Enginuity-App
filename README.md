@@ -1,4 +1,4 @@
-# enginuity_the_app
+# engineuity
 
 A new Flutter project.
 

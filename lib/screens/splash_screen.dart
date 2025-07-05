@@ -85,7 +85,7 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                   const SizedBox(height: 32),
                   const Text(
-                    'ENGINUITY',
+                    'ENGINEUITY',
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
