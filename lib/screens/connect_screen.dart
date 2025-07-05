@@ -11,7 +11,7 @@ class ConnectScreen extends StatefulWidget {
 }
 
 class _ConnectScreenState extends State<ConnectScreen> {
-  bool _connecting = false;
+  final bool _connecting = false;
 
   Future<bool> _requestBluetoothPermissions() async {
     debugPrint('🔐 CONNECT: Requesting Bluetooth permissions...');
@@ -22,13 +22,14 @@ class _ConnectScreenState extends State<ConnectScreen> {
             .request(); // Needed for BLE and Bluetooth discovery
 
     if (!mounted) return false;
-    
-    bool allGranted = bluetoothConnect.isGranted &&
+
+    bool allGranted =
+        bluetoothConnect.isGranted &&
         bluetoothScan.isGranted &&
         location.isGranted;
-        
+
     debugPrint('🔐 CONNECT: Permissions granted: $allGranted');
-    
+
     if (!allGranted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -36,7 +37,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
         ),
       );
     }
-    
+
     return allGranted;
   }
 
@@ -56,7 +57,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF101B20),
+      backgroundColor: const Color(0xFF0A1F26),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -160,7 +161,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2C3A42),
+                      backgroundColor: const Color(0xFF1E3A42),
                       padding: const EdgeInsets.symmetric(vertical: 18),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -202,7 +203,7 @@ class _ConnectionDialogState extends State<ConnectionDialog> {
 
   Future<bool> _connect() async {
     debugPrint('🔌 DIALOG: Starting connection process');
-    
+
     // Start Bluetooth if not enabled
     final btState = await FlutterBluetoothSerial.instance.state;
     debugPrint('🔌 DIALOG: Bluetooth state: $btState');
@@ -210,15 +211,17 @@ class _ConnectionDialogState extends State<ConnectionDialog> {
       debugPrint('🔌 DIALOG: Requesting Bluetooth enable...');
       await FlutterBluetoothSerial.instance.requestEnable();
     }
-    
+
     // Discover devices
     debugPrint('🔌 DIALOG: Getting bonded devices...');
     List<BluetoothDevice> devices =
         await FlutterBluetoothSerial.instance.getBondedDevices();
-    debugPrint('🔌 DIALOG: Found ${devices.length} bonded devices: ${devices.map((d) => d.name).toList()}');
-    
+    debugPrint(
+      '🔌 DIALOG: Found ${devices.length} bonded devices: ${devices.map((d) => d.name).toList()}',
+    );
+
     if (!mounted) return false;
-    
+
     // Try to find an OBD device (by name, e.g., contains 'OBD' or 'ELM')
     BluetoothDevice? obdDevice;
     try {
@@ -233,7 +236,7 @@ class _ConnectionDialogState extends State<ConnectionDialog> {
       obdDevice = null;
       debugPrint('🔌 DIALOG: No OBD device found in bonded devices');
     }
-    
+
     if (obdDevice != null) {
       // Try to connect with timeout
       try {
@@ -242,7 +245,9 @@ class _ConnectionDialogState extends State<ConnectionDialog> {
             .connectToDevice(obdDevice)
             .timeout(const Duration(seconds: 15));
         debugPrint('🔌 DIALOG: Connection result: $connected');
-        debugPrint('🔌 DIALOG: ObdConnectionManager().isConnected: ${ObdConnectionManager().isConnected}');
+        debugPrint(
+          '🔌 DIALOG: ObdConnectionManager().isConnected: ${ObdConnectionManager().isConnected}',
+        );
         return connected;
       } catch (e) {
         debugPrint('❌ DIALOG: Connection attempt failed: $e');
@@ -264,7 +269,9 @@ class _ConnectionDialogState extends State<ConnectionDialog> {
         child: FutureBuilder<bool>(
           future: _connectionFuture,
           builder: (context, snapshot) {
-            debugPrint('🔌 DIALOG: FutureBuilder state: ${snapshot.connectionState}, hasError: ${snapshot.hasError}, data: ${snapshot.data}');
+            debugPrint(
+              '🔌 DIALOG: FutureBuilder state: ${snapshot.connectionState}, hasError: ${snapshot.hasError}, data: ${snapshot.data}',
+            );
             if (snapshot.connectionState == ConnectionState.waiting) {
               debugPrint('🔌 DIALOG: Showing waiting state');
               return SingleChildScrollView(
@@ -314,7 +321,11 @@ class _ConnectionDialogState extends State<ConnectionDialog> {
                   mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.check_circle, color: Colors.green, size: 48),
+                    const Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 48,
+                    ),
                     const SizedBox(height: 12),
                     const Text(
                       'Connected!',

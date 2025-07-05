@@ -7,7 +7,6 @@ import 'connect_screen.dart';
 import 'scan_screen.dart';
 import 'errors_screen.dart';
 
-
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
   @override
@@ -20,7 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    NotificationService.checkAndNotify(); // Call your notification checker here
+    NotificationService.checkAndNotify(); // Check for maintenance reminders
   }
 
   int _selectedIndex = 0;
@@ -47,10 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       await Navigator.push(
         context,
-        MaterialPageRoute(
-          builder:
-              (_) => const ErrorsScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const ErrorsScreen()),
       );
       if (!mounted) return;
       setState(() => _selectedIndex = 0); // Return to home after errors screen
@@ -89,7 +85,11 @@ class _HomeScreenState extends State<HomeScreen> {
   void _logout() async {
     await FirebaseAuth.instance.signOut();
     if (!mounted) return;
-    Navigator.pushReplacementNamed(context, '/start-screen');
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      '/start-screen',
+      (route) => false,
+    );
   }
 
   @override
@@ -186,14 +186,92 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                'My Cars',
-                style: TextStyle(color: Colors.white70, fontSize: 16),
+            // App branding section
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF12303B), Color(0xFF1E3A42)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Image.asset(
+                      'assets/images/engine_logo_2.png',
+                      width: 40,
+                      height: 40,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'ENGINUITY',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 2.0,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Vehicle Diagnostics & Monitoring',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.directions_car,
+                    color: Colors.white70,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'My Cars',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: carsColl.snapshots(),
@@ -222,7 +300,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         color:
                             isSelected
                                 ? Colors.blueGrey
-                                : const Color(0xFF22313F),
+                                : const Color(0xFF12303B),
                         margin: const EdgeInsets.symmetric(vertical: 8),
                         child: ListTile(
                           leading:
@@ -246,8 +324,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           subtitle: Text(
                             'Mileage: ${data['mileage']} miles\n'
-                            'Last Service: ${data['lastServiceDate'] != null ? (data['lastServiceDate'] as Timestamp).toDate().toString().split(" ")[0] : 'N/A'}\n'
-                            'Last Scan: ${data['lastScan'] != null ? (data['lastScan'] as Timestamp).toDate().toString().split(" ")[0] : 'N/A'}',
+                            'Last Service: ${data['lastServiceDate'] != null ? DateTime.fromMillisecondsSinceEpoch((data['lastServiceDate'] as Timestamp).millisecondsSinceEpoch).toString().split(" ")[0] : 'N/A'}\n'
+                            'Last Scan: ${data['lastScan'] != null ? DateTime.fromMillisecondsSinceEpoch((data['lastScan'] as Timestamp).millisecondsSinceEpoch).toString().split(" ")[0] : 'N/A'}',
                             style: const TextStyle(color: Colors.white70),
                           ),
                           isThreeLine: true,
@@ -320,7 +398,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF2C4D54),
+        backgroundColor: const Color(0xFF1E3A42),
         onPressed: () async {
           await Navigator.push(
             context,
