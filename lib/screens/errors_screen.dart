@@ -406,8 +406,8 @@ class _ErrorsScreenState extends State<ErrorsScreen> {
     final message = fault['message'] as String? ?? 'Unknown fault';
     final suggestion = fault['suggestion'] as String? ?? '';
     final metric = fault['metric'] as String? ?? '';
-    final value = fault['value'] as double? ?? 0.0;
-    final threshold = fault['threshold'] as double? ?? 0.0;
+    final value = (fault['value'] as num?)?.toDouble() ?? 0.0;
+    final threshold = (fault['threshold'] as num?)?.toDouble() ?? 0.0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
