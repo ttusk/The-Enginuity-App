@@ -113,7 +113,7 @@ class _ErrorsScreenState extends State<ErrorsScreen> {
         debugPrint('📤 Sending CSV to prediction endpoint...');
         final request1 = http.MultipartRequest(
           'POST',
-          Uri.parse('http://192.168.1.102:5000/predict-faults'),
+          Uri.parse('http://172.20.10.4:5000/predict-faults'),
         );
         request1.files.add(
           await http.MultipartFile.fromPath('file', latestCsv.path),
@@ -152,7 +152,7 @@ class _ErrorsScreenState extends State<ErrorsScreen> {
         debugPrint('📤 Sending CSV to errors endpoint...');
         final request2 = http.MultipartRequest(
           'POST',
-          Uri.parse('http://192.168.1.102:5000/check-current-errors'),
+          Uri.parse('http://172.20.10.4:5000/check-current-errors'),
         );
         request2.files.add(
           await http.MultipartFile.fromPath('file', latestCsv.path),

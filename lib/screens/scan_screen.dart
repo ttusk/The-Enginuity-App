@@ -76,7 +76,16 @@ class _ScanScreenState extends State<ScanScreen> {
   @override
   void initState() {
     super.initState();
-    // No need to handle local image file since we're using imageUrl from carData
+    // Listen to connection status changes
+    ObdConnectionManager().addListener(_onConnectionStatusChanged);
+  }
+
+  void _onConnectionStatusChanged() {
+    if (mounted) {
+      setState(() {
+        // Trigger rebuild when connection status changes
+      });
+    }
   }
 
   bool _realTimeScanning = false;
@@ -571,6 +580,8 @@ class _ScanScreenState extends State<ScanScreen> {
     _rpmTimer?.cancel();
     _csvTimer?.cancel();
     _isCommandInProgress = false;
+    // Remove listener to prevent memory leaks
+    ObdConnectionManager().removeListener(_onConnectionStatusChanged);
     super.dispose();
   }
 

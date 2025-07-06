@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'dart:collection';
 import 'package:flutter/foundation.dart';
 
-class ObdConnectionManager {
+class ObdConnectionManager extends ChangeNotifier {
   static final ObdConnectionManager _instance = ObdConnectionManager._internal();
   factory ObdConnectionManager() => _instance;
   ObdConnectionManager._internal();
@@ -26,6 +26,9 @@ class ObdConnectionManager {
       _connection = await BluetoothConnection.toAddress(device.address);
       _device = device;
       _isInitialized = false;
+      
+      // Notify listeners of connection status change
+      notifyListeners();
       
       debugPrint('🔌 OBD: Bluetooth connection established, setting up response listener');
       
@@ -49,6 +52,9 @@ class ObdConnectionManager {
       _device = null;
       _isInitialized = false;
       _inputSubscription?.cancel();
+      
+      // Notify listeners of connection status change
+      notifyListeners();
       return false;
     }
   }
@@ -159,6 +165,8 @@ class ObdConnectionManager {
       if (protocolResponse.contains('41') && protocolResponse.length > 4) {
         _isInitialized = true;
         debugPrint('✅ OBD: Adapter initialized successfully');
+        // Notify listeners of connection status change
+        notifyListeners();
         return true;
       } else {
         debugPrint('❌ OBD: Failed to detect OBD protocol. Response: $protocolResponse');
@@ -215,6 +223,9 @@ class ObdConnectionManager {
     _clearPendingCommands('Disconnected');
     _responseBuffer.clear();
     debugPrint('🔌 OBD: Disconnected successfully');
+    
+    // Notify listeners of connection status change
+    notifyListeners();
   }
 
   bool get isConnected => _connection != null && _connection!.isConnected && _isInitialized;
