@@ -9,7 +9,9 @@ import 'package:permission_handler/permission_handler.dart';
 import 'home.dart';
 
 class ErrorsScreen extends StatefulWidget {
-  const ErrorsScreen({super.key});
+  final Map<String, dynamic>? carData;
+  
+  const ErrorsScreen({super.key, this.carData});
 
   @override
   State<ErrorsScreen> createState() => _ErrorsScreenState();
@@ -218,15 +220,34 @@ class _ErrorsScreenState extends State<ErrorsScreen> {
         body: Column(
           children: [
             // Car image placeholder
-            Container(
+            SizedBox(
               width: double.infinity,
               height: 180,
-              color: Colors.black54,
-              child: const Icon(
-                Icons.directions_car,
-                color: Colors.white70,
-                size: 100,
-              ),
+              child: widget.carData?['imageUrl'] != null
+                  ? Image.network(
+                      widget.carData!['imageUrl'],
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: Colors.black54,
+                        child: const Center(
+                          child: Icon(
+                            Icons.directions_car,
+                            color: Colors.white70,
+                            size: 100,
+                          ),
+                        ),
+                      ),
+                    )
+                  : Container(
+                      color: Colors.black54,
+                      child: const Center(
+                        child: Icon(
+                          Icons.directions_car,
+                          color: Colors.white70,
+                          size: 100,
+                        ),
+                      ),
+                    ),
             ),
             Container(
               color: const Color(0xFF12303B),
@@ -234,17 +255,17 @@ class _ErrorsScreenState extends State<ErrorsScreen> {
               width: double.infinity,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
+                children: [
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'ZS',
-                        style: TextStyle(color: Colors.white54, fontSize: 14),
+                        widget.carData?['model'] ?? 'Unknown Model',
+                        style: const TextStyle(color: Colors.white54, fontSize: 14),
                       ),
                       Text(
-                        'MG',
-                        style: TextStyle(
+                        widget.carData?['make'] ?? 'Unknown Make',
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
@@ -252,7 +273,7 @@ class _ErrorsScreenState extends State<ErrorsScreen> {
                       ),
                     ],
                   ),
-                  Icon(Icons.search, color: Colors.white70),
+                  const Icon(Icons.build, color: Colors.white70),
                 ],
               ),
             ),

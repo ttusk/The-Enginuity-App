@@ -46,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       await Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const ErrorsScreen()),
+        MaterialPageRoute(builder: (_) => ErrorsScreen(carData: _selectedCarData)),
       );
       if (!mounted) return;
       setState(() => _selectedIndex = 0); // Return to home after errors screen
@@ -302,91 +302,163 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ? Colors.blueGrey
                                 : const Color(0xFF12303B),
                         margin: const EdgeInsets.symmetric(vertical: 8),
-                        child: ListTile(
-                          leading:
-                              data['imageUrl'] != null
-                                  ? ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(
-                                      data['imageUrl'],
-                                      width: 50,
-                                      height: 50,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  )
-                                  : const Icon(
-                                    Icons.directions_car,
-                                    color: Colors.white,
-                                  ),
-                          title: Text(
-                            '${data['make']} ${data['model']}',
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                          subtitle: Text(
-                            'Mileage: ${data['mileage']} miles\n'
-                            'Last Service: ${data['lastServiceDate'] != null ? DateTime.fromMillisecondsSinceEpoch((data['lastServiceDate'] as Timestamp).millisecondsSinceEpoch).toString().split(" ")[0] : 'N/A'}\n'
-                            'Last Scan: ${data['lastScan'] != null ? DateTime.fromMillisecondsSinceEpoch((data['lastScan'] as Timestamp).millisecondsSinceEpoch).toString().split(" ")[0] : 'N/A'}',
-                            style: const TextStyle(color: Colors.white70),
-                          ),
-                          isThreeLine: true,
-                          trailing: IconButton(
-                            icon: const Icon(
-                              Icons.delete,
-                              color: Colors.redAccent,
-                            ),
-                            onPressed: () async {
-                              final confirm = await showDialog<bool>(
-                                context: context,
-                                builder:
-                                    (ctx) => AlertDialog(
-                                      title: const Text("Delete Car"),
-                                      content: const Text(
-                                        "Are you sure you want to delete this car?",
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed:
-                                              () => Navigator.pop(ctx, false),
-                                          child: const Text("Cancel"),
+                        child: Column(
+                          children: [
+                            ListTile(
+                              leading:
+                                  data['imageUrl'] != null
+                                      ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Image.network(
+                                          data['imageUrl'],
+                                          width: 50,
+                                          height: 50,
+                                          fit: BoxFit.cover,
                                         ),
-                                        TextButton(
-                                          onPressed:
-                                              () => Navigator.pop(ctx, true),
-                                          child: const Text(
-                                            "Delete",
-                                            style: TextStyle(color: Colors.red),
+                                      )
+                                      : const Icon(
+                                        Icons.directions_car,
+                                        color: Colors.white,
+                                      ),
+                              title: Text(
+                                '${data['make']} ${data['model']}',
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                              subtitle: Text(
+                                'Mileage: ${data['mileage']} miles\n'
+                                'Last Service: ${data['lastServiceDate'] != null ? DateTime.fromMillisecondsSinceEpoch((data['lastServiceDate'] as Timestamp).millisecondsSinceEpoch).toString().split(" ")[0] : 'N/A'}\n'
+                                'Last Scan: ${data['lastScan'] != null ? DateTime.fromMillisecondsSinceEpoch((data['lastScan'] as Timestamp).millisecondsSinceEpoch).toString().split(" ")[0] : 'N/A'}',
+                                style: const TextStyle(color: Colors.white70),
+                              ),
+                              isThreeLine: true,
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (isSelected)
+                                    const Icon(
+                                      Icons.check_circle,
+                                      color: Colors.green,
+                                      size: 20,
+                                    ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.delete,
+                                      color: Colors.redAccent,
+                                    ),
+                                    onPressed: () async {
+                                      final confirm = await showDialog<bool>(
+                                        context: context,
+                                        builder:
+                                            (ctx) => AlertDialog(
+                                              title: const Text("Delete Car"),
+                                              content: const Text(
+                                                "Are you sure you want to delete this car?",
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed:
+                                                      () => Navigator.pop(ctx, false),
+                                                  child: const Text("Cancel"),
+                                                ),
+                                                TextButton(
+                                                  onPressed:
+                                                      () => Navigator.pop(ctx, true),
+                                                  child: const Text(
+                                                    "Delete",
+                                                    style: TextStyle(color: Colors.red),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                      );
+                                      if (confirm == true) {
+                                        await doc.reference.delete();
+                                        if (_selectedCarId == doc.id) {
+                                          setState(() {
+                                            _selectedCarId = null;
+                                            _selectedCarData = null;
+                                          });
+                                        }
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                              onTap: () {
+                                setState(() {
+                                  if (_selectedCarId == doc.id) {
+                                    // Deselect if already selected
+                                    _selectedCarId = null;
+                                    _selectedCarData = null;
+                                  } else {
+                                    // Select this car
+                                    _selectedCarId = doc.id;
+                                    _selectedCarData = {...data, 'id': doc.id};
+                                  }
+                                });
+                              },
+                            ),
+                            // Expanded view when car is selected
+                            if (isSelected && data['imageUrl'] != null)
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.network(
+                                        data['imageUrl'],
+                                        width: double.infinity,
+                                        height: 200,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                      children: [
+                                        ElevatedButton.icon(
+                                          onPressed: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) => ScanScreen(
+                                                  carData: {...data, 'id': doc.id},
+                                                  deviceConnected: false,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                          icon: const Icon(Icons.search),
+                                          label: const Text('Scan'),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: const Color(0xFF1E3A42),
+                                            foregroundColor: Colors.white,
+                                          ),
+                                        ),
+                                        ElevatedButton.icon(
+                                          onPressed: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) => ErrorsScreen(carData: _selectedCarData),
+                                              ),
+                                            );
+                                          },
+                                          icon: const Icon(Icons.build),
+                                          label: const Text('Errors'),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: const Color(0xFF1E3A42),
+                                            foregroundColor: Colors.white,
                                           ),
                                         ),
                                       ],
                                     ),
-                              );
-                              if (confirm == true) {
-                                await doc.reference.delete();
-                                if (_selectedCarId == doc.id) {
-                                  setState(() {
-                                    _selectedCarId = null;
-                                    _selectedCarData = null;
-                                  });
-                                }
-                              }
-                            },
-                          ),
-                          onTap: () {
-                            setState(() {
-                              _selectedCarId = doc.id;
-                              _selectedCarData = {...data, 'id': doc.id};
-                            });
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (_) => ScanScreen(
-                                      carData: {...data, 'id': doc.id},
-                                      deviceConnected: false,
-                                    ),
+                                  ],
+                                ),
                               ),
-                            );
-                          },
+                          ],
                         ),
                       );
                     },

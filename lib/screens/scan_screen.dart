@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
@@ -48,7 +47,6 @@ class _ScanScreenState extends State<ScanScreen> {
     }
   }
 
-  File? _carImageFile;
   // Map to hold metric values (0.0 - 1.0) for progress bars
   final Map<String, double> _metrics = {
     'ENGINE_RPM': 0,
@@ -78,20 +76,7 @@ class _ScanScreenState extends State<ScanScreen> {
   @override
   void initState() {
     super.initState();
-    // If the car already has an image, keep a reference so we can display it
-    if (widget.carData != null && widget.carData!['imageFile'] is File) {
-      _carImageFile = widget.carData!['imageFile'] as File;
-    }
-  }
-
-  Future<void> _pickCarImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _carImageFile = File(pickedFile.path);
-      });
-    }
+    // No need to handle local image file since we're using imageUrl from carData
   }
 
   bool _realTimeScanning = false;
@@ -622,21 +607,31 @@ class _ScanScreenState extends State<ScanScreen> {
             SizedBox(
               width: double.infinity,
               height: 180,
-              child:
-                  _carImageFile == null
-                      ? Container(
+              child: widget.carData?['imageUrl'] != null
+                  ? Image.network(
+                      widget.carData!['imageUrl'],
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
                         color: Colors.black54,
-                        child: Center(
-                          child: ElevatedButton(
-                            onPressed: _pickCarImage,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white24,
-                            ),
-                            child: const Text('Add Car Image'),
+                        child: const Center(
+                          child: Icon(
+                            Icons.directions_car,
+                            color: Colors.white70,
+                            size: 100,
                           ),
                         ),
-                      )
-                      : Image.file(_carImageFile!, fit: BoxFit.cover),
+                      ),
+                    )
+                  : Container(
+                      color: Colors.black54,
+                      child: const Center(
+                        child: Icon(
+                          Icons.directions_car,
+                          color: Colors.white70,
+                          size: 100,
+                        ),
+                      ),
+                    ),
             ),
             Container(
               color: const Color(0xFF12303B),
