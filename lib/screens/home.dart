@@ -43,6 +43,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (index == 1) {
       // Navigate to errors screen
+      if (_selectedCarData == null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Select a car first.')));
+        return;
+      }
       if (!mounted) return;
       await Navigator.push(
         context,
